@@ -35,6 +35,7 @@
   --ok: #4cc795; --ok-soft: #12291f; --warn: #e3a64c; color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { overflow-x: hidden; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
@@ -92,22 +93,21 @@ button, select, input { font: inherit; color: inherit; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; align-items: center; }
 .actions a { font-size: 12px; border: 1px solid var(--accent); color: var(--accent); border-radius: 99px; padding: 3px 10px; }
 .actions a.primary { background: var(--accent); color: #fff; }
+.actions a.report { border-style: dashed; border-color: var(--ink-3); color: var(--ink-2); }
 .actions .phone { font-size: 12px; color: var(--ink-3); user-select: all; font-variant-numeric: tabular-nums; }
 .empty { background: var(--surface); padding: 40px 16px; text-align: center; color: var(--ink-2); }
 .more { display: block; width: 100%; padding: 14px; background: var(--surface); border: 0; color: var(--accent); cursor: pointer; }
 
 /* ---------- map ---------- */
-.mapwrap { padding-block: 12px; }
-.map { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.map svg { display: block; width: 100%; height: auto; max-width: 100%; }
-.map .pin { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; cursor: pointer; }
-.map .pin.approx { fill: var(--ink-3); }
-.map .pin:hover, .map .pin:focus { fill: var(--gold); outline: none; }
-.map .lm { fill: var(--ink); }
-.map .lmtext { fill: var(--ink-2); font-size: 11px; }
-.map .grid { stroke: var(--line); stroke-width: 1; }
-.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); padding-block: 8px 0; }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+#mapview { position: relative; }
+#lmap { height: calc(100dvh - 190px); min-height: 360px; background: var(--bg); z-index: 0; }
+.maploading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-2); }
+.lm-label { background: var(--ink); color: var(--surface); font-size: 11px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.shopsheet { position: absolute; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 500; background: var(--surface); border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.18); display: grid; grid-template-columns: 64px minmax(0,1fr) auto; gap: 12px; padding: 12px; align-items: start; }
+.shopsheet .thumb { width: 64px; height: 64px; font-size: 24px; }
+.shopsheet .close { background: none; border: 0; font-size: 22px; line-height: 1; color: var(--ink-3); cursor: pointer; padding: 0 4px; }
+.maphint { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 500; background: var(--surface); color: var(--ink-2); font-size: 12px; padding: 6px 12px; border-radius: 99px; box-shadow: 0 2px 8px rgba(0,0,0,.15); white-space: nowrap; }
+.leaflet-container { font: inherit; }
 
 footer { padding-block: 18px 28px; color: var(--ink-3); font-size: 12px; line-height: 1.6; }
 @media (prefers-reduced-motion: reduce) { .item.flash { animation: none; } }
@@ -149,9 +149,10 @@ footer { padding-block: 18px 28px; color: var(--ink-3); font-size: 12px; line-he
   <section id="listview">
     <div class="list" id="list"></div>
   </section>
-  <section id="mapview" class="mapwrap gutter" hidden>
-    <div class="map" id="map"></div>
-    <div class="legend"><span><i style="background:var(--accent)"></i>門牌定位</span><span><i style="background:var(--ink-3)"></i>約略位置</span><span><i style="background:var(--ink);border-radius:2px"></i>地標</span></div>
+  <section id="mapview" hidden>
+    <div id="lmap"><div class="maploading">地圖載入中…</div></div>
+    <div class="maphint" id="maphint">點橘色標記看店家</div>
+    <div class="shopsheet" id="sheet" hidden></div>
   </section>
 </main>
 
@@ -211,29 +212,43 @@ function filtered() {
   return rows.sort((a, b) => by(a, b) || a.name.localeCompare(b.name, "zh-Hant"));
 }
 
-function card(m) {
+function chipsHtml(m) {
   const chips = [];
   if (m.years != null) chips.push(m.years < 1 ? `<span class="chip new">新開幕</span>` : `<span class="chip years">開業 ${Math.floor(m.years)} 年</span>`);
   if (m.verified) chips.push(`<span class="chip ok">多來源核對</span>`);
-  if (m.ig) chips.push(`<span class="chip">IG 作品</span>`);
+  if (m.ig) chips.push(`<span class="chip">${{ search: "IG（自動比對）", ugc: "IG（客人回報）" }[m.igSrc] || "IG 作品"}</span>`);
   if (m.line) chips.push(`<span class="chip">LINE 預約</span>`);
   if (m.warn) chips.push(`<span class="chip warn">${esc(m.warn)}</span>`);
   if (m.lat == null) chips.push(`<span class="chip warn">待補地址</span>`);
-  const gmaps = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(m.name + " " + m.address);
+  return chips.join("");
+}
+
+function actionsHtml(m, onMap) {
+  const gmaps = onMap && m.lat != null
+    ? `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}`
+    : "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(m.name + " " + m.address);
   const line = m.line ? (m.line.startsWith("http") ? m.line : "https://line.me/R/ti/p/" + m.line) : "";
+  return `
+    ${m.ig ? `<a class="primary" href="https://www.instagram.com/${esc(m.ig)}/" target="_blank" rel="noopener">看作品</a>` : ""}
+    ${line ? `<a href="${esc(line)}" target="_blank" rel="noopener">LINE</a>` : ""}
+    <a href="${gmaps}" target="_blank" rel="noopener">${onMap ? "導航" : "地圖・評論"}</a>
+    ${!m.ig && META.reportUrl ? `<a class="report" href="${esc(META.reportUrl.replace("SHOPID", encodeURIComponent(m.id)).replace("SHOPNAME", encodeURIComponent(m.name)))}" target="_blank" rel="noopener">這家店的 IG 是？</a>` : ""}
+    ${m.phone ? `<span class="phone">${esc(m.phone)}</span>` : ""}`;
+}
+
+function thumbHtml(m) {
+  return `<div class="thumb" style="background:hsl(${hue(m.name)} 45% 62%)">${esc(initial(m.name))}<small>${m.ig ? "看 IG 作品" : "暫無作品"}</small></div>`;
+}
+
+function card(m) {
   return `<article class="item gutter" id="m-${m.id}">
-    <div class="thumb" style="background:hsl(${hue(m.name)} 45% 62%)">${esc(initial(m.name))}<small>${m.ig ? "看 IG 作品" : "暫無作品"}</small></div>
+    ${thumbHtml(m)}
     <div class="body">
       <div class="name">${esc(m.name)}<span class="kind">${m.kind === "studio" ? "工作室" : "實體店"}</span></div>
       ${m.reg && m.reg !== m.name ? `<div class="reg">登記名稱：${esc(m.reg)}</div>` : ""}
       <div class="meta"><span class="road">${esc(m.road || m.address || "地址未提供")}</span><span class="dist">${fmtDist(m.dist)}</span></div>
-      <div class="chips">${chips.join("")}</div>
-      <div class="actions">
-        ${m.ig ? `<a class="primary" href="https://www.instagram.com/${esc(m.ig)}/" target="_blank" rel="noopener">看作品</a>` : ""}
-        ${line ? `<a href="${esc(line)}" target="_blank" rel="noopener">LINE</a>` : ""}
-        <a href="${gmaps}" target="_blank" rel="noopener">地圖・評論</a>
-        ${m.phone ? `<span class="phone">${esc(m.phone)}</span>` : ""}
-      </div>
+      <div class="chips">${chipsHtml(m)}</div>
+      <div class="actions">${actionsHtml(m, false)}</div>
     </div>
   </article>`;
 }
@@ -248,35 +263,78 @@ function renderList(rows) {
   if (more) more.onclick = () => { state.shown += PAGE; render(); };
 }
 
-function renderMap(rows) {
-  const pts = rows.filter(m => m.lat != null);
-  const all = pts.map(m => [m.lat, m.lng]).concat(LANDMARKS.map(l => [l.lat, l.lng]));
-  if (!all.length) { $("#map").innerHTML = `<div class="empty">沒有可顯示的位置</div>`; return; }
-  const lats = all.map(p => p[0]), lngs = all.map(p => p[1]);
-  const pad = 0.004;
-  const minLat = Math.min(...lats) - pad, maxLat = Math.max(...lats) + pad;
-  const minLng = Math.min(...lngs) - pad, maxLng = Math.max(...lngs) + pad;
-  const kx = Math.cos((minLat + maxLat) / 2 * Math.PI / 180);
-  const W = 600, H = Math.max(320, Math.min(900, W * (maxLat - minLat) / ((maxLng - minLng) * kx)));
-  const x = lng => (lng - minLng) / (maxLng - minLng) * W;
-  const y = lat => H - (lat - minLat) / (maxLat - minLat) * H;
-  let g = "";
-  for (let i = 1; i < 6; i++) g += `<line class="grid" x1="${W * i / 6}" y1="0" x2="${W * i / 6}" y2="${H}"/><line class="grid" x1="0" y1="${H * i / 6}" x2="${W}" y2="${H * i / 6}"/>`;
-  const lm = LANDMARKS.map(l => `<rect class="lm" x="${x(l.lng) - 5}" y="${y(l.lat) - 5}" width="10" height="10" rx="2"/><text class="lmtext" x="${x(l.lng) + 8}" y="${y(l.lat) + 4}">${esc(l.name)}</text>`).join("");
-  const pins = pts.map(m => `<circle class="pin${m.prec === "address" ? "" : " approx"}" tabindex="0" data-id="${m.id}" cx="${x(m.lng).toFixed(1)}" cy="${y(m.lat).toFixed(1)}" r="6"><title>${esc(m.name)}</title></circle>`).join("");
-  $("#map").innerHTML = `<svg viewBox="0 0 ${W} ${H.toFixed(0)}" role="img" aria-label="店家相對位置圖">${g}${lm}${pins}</svg>`;
-  $("#map").querySelectorAll(".pin").forEach(p => {
-    const go = () => {
-      const m = DATA.find(d => d.id === p.dataset.id);
-      const idx = rows.indexOf(m);
-      if (idx >= state.shown) state.shown = idx + 1;
-      setView("list");
-      const el = document.getElementById("m-" + m.id);
-      if (el) { el.scrollIntoView({ block: "center" }); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
-    };
-    p.addEventListener("click", go);
-    p.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+/* ---------- 地圖：Leaflet + OpenStreetMap，第一次切到地圖才載入 ---------- */
+let LMAP = null, LAYER = null, LEAFLET = null;
+
+function loadLeaflet() {
+  if (LEAFLET) return LEAFLET;
+  LEAFLET = new Promise((ok, fail) => {
+    const css = document.createElement("link");
+    css.rel = "stylesheet"; css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    document.head.appendChild(css);
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    s.onload = ok; s.onerror = fail;
+    document.head.appendChild(s);
   });
+  return LEAFLET;
+}
+
+function showSheet(m) {
+  const sheet = $("#sheet");
+  sheet.innerHTML = `${thumbHtml(m)}
+    <div class="body">
+      <div class="name">${esc(m.name)}<span class="kind">${m.kind === "studio" ? "工作室" : "實體店"}</span></div>
+      <div class="meta"><span class="road">${esc(m.road || m.address)}</span><span class="dist">${fmtDist(m.dist)}</span></div>
+      <div class="chips">${chipsHtml(m)}</div>
+      <div class="actions">${actionsHtml(m, true)}</div>
+    </div>
+    <button class="close" type="button" aria-label="關閉">×</button>`;
+  sheet.hidden = false;
+  $("#maphint").hidden = true;
+  sheet.querySelector(".close").onclick = () => { sheet.hidden = true; };
+}
+
+function renderMap(rows) {
+  loadLeaflet().then(() => drawMap(rows)).catch(() => {
+    $("#lmap").innerHTML = `<div class="maploading">地圖載入失敗，請檢查網路後再試一次</div>`;
+    LEAFLET = null;
+  });
+}
+
+function drawMap(rows) {
+  const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#FF6827";
+  if (!LMAP) {
+    $("#lmap").innerHTML = "";
+    LMAP = L.map("lmap");
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+    }).addTo(LMAP);
+    LAYER = L.layerGroup().addTo(LMAP);
+    LANDMARKS.forEach(l => L.marker([l.lat, l.lng], {
+      icon: L.divIcon({ className: "", html: `<span class="lm-label">${esc(l.name)}</span>`, iconSize: null }),
+      interactive: false, keyboard: false,
+    }).addTo(LMAP));
+    LMAP.on("click", () => { $("#sheet").hidden = true; });
+  }
+  setTimeout(() => LMAP.invalidateSize(), 0);
+  LAYER.clearLayers();
+  $("#sheet").hidden = true;
+  const pts = rows.filter(m => m.lat != null);
+  pts.forEach(m => {
+    const mk = L.circleMarker([m.lat, m.lng], {
+      radius: m.ig ? 9 : 7, color: "#fff", weight: 2,
+      fillColor: m.prec === "address" ? accent : "#a59d9a", fillOpacity: 1,
+    });
+    mk.on("click", e => { L.DomEvent.stopPropagation(e); showSheet(m); });
+    mk.addTo(LAYER);
+  });
+  if (pts.length) LMAP.fitBounds(pts.map(m => [m.lat, m.lng]), { padding: [30, 30], maxZoom: 16 });
+  else LMAP.setView([LANDMARKS[0].lat, LANDMARKS[0].lng], 14);
+  const hint = $("#maphint");
+  hint.hidden = false;
+  hint.textContent = pts.length ? `${pts.length} 家店・點標記看店家` : "沒有符合條件的店家";
 }
 
 function render() {
@@ -305,6 +363,10 @@ $("#tabs").addEventListener("click", e => { const b = e.target.closest("button")
 $("#from").addEventListener("change", e => { state.from = +e.target.value; if (state.sort === "rec") { state.sort = "dist"; $("#sort").value = "dist"; } render(); });
 $("#kind").addEventListener("change", e => { state.kind = e.target.value; state.shown = PAGE; render(); });
 $("#sort").addEventListener("change", e => { state.sort = e.target.value; render(); });
-$("#viewbtn").addEventListener("click", () => setView(state.view === "list" ? "map" : "list"));
-render();
+$("#viewbtn").addEventListener("click", () => {
+  const v = state.view === "list" ? "map" : "list";
+  try { history.replaceState(null, "", v === "map" ? "#map" : location.pathname); } catch (e) {}
+  setView(v);
+});
+if (location.hash === "#map") setView("map"); else render();
 </script>

@@ -60,6 +60,11 @@ GitHub Actions（每週排程，免費）
 - 財政部資料每天更新。新開的店會自動出現；歇業註銷的店，下次 build 就會消失。
 - Nominatim 規定每秒最多 1 次查詢。全台美甲店約數千家，第一次 build 約 1–2 小時，之後只查新增的店，幾分鐘內完成。
 
+## 下一版待辦
+
+- **前期改成不公開**：GitHub 專案改成私人，網站改放 Cloudflare Pages，用 Cloudflare Access 限定 Email 登入（都免費）；正式公開時關掉 Access 就好。
+- 把 GitHub Actions 升級到支援 Node.js 24 的版本（目前出現 Node 20 即將淘汰的警告，暫時不影響運作）。
+
 ## 四、正式產品架構（資料長大之後）
 
 ```

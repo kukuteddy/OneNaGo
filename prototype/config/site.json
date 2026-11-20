@@ -1,0 +1,5 @@
+{
+  "_說明": "report_form_prefill：Google 表單的「預先填入連結」，店家 ID 欄填 SHOPID、店名欄填 SHOPNAME 後複製連結貼在這裡。留空則不顯示回報按鈕。report_responses_csv：表單回應試算表「發布到網路」的 CSV 網址，build 時自動讀取。",
+  "report_form_prefill": "",
+  "report_responses_csv": ""
+}

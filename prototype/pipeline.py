@@ -483,6 +483,150 @@ def cmd_ig(args) -> None:
     write_json("ig.json", store)
 
 
+# ================================================================ 3b. 找 IG 帳號（搜尋 API 自動比對 + 客人回報）
+
+SITE_CONFIG = ROOT / "config" / "site.json"
+TAVILY_URL = "https://api.tavily.com/search"
+IG_TITLE_RE = re.compile(r"\(@([A-Za-z0-9_.]{1,30})\)")
+IG_RESERVED = {"p", "reel", "reels", "explore", "stories", "accounts", "tv", "about", "developer", "legal"}
+REDISCOVER_DAYS = 90  # 沒找到的店，90 天後再查一次
+
+
+def site_config() -> dict:
+    return json.loads(SITE_CONFIG.read_text(encoding="utf-8")) if SITE_CONFIG.exists() else {}
+
+
+def bigrams(s: str) -> set[str]:
+    s = re.sub(r"[\s・·。．.,，()（）|@_\-]", "", (s or "").lower())
+    for w in ("有限公司", "企業社", "工作室", "商行", "美學", "美甲", "沙龍", "nail", "studio"):
+        s = s.replace(w, "")
+    return {s[i:i + 2] for i in range(len(s) - 1)} or ({s} if s else set())
+
+
+def ig_candidates(results: list[dict]) -> list[dict]:
+    """從搜尋結果取出 IG 帳號（個人頁網址或標題裡的 @帳號）。"""
+    out = []
+    for r in results:
+        url, title = r.get("url") or "", r.get("title") or ""
+        handle = ""
+        m = re.search(r"instagram\.com/([A-Za-z0-9_.]{1,30})/?(?:[?#]|$)", url)
+        if m and m.group(1).lower() not in IG_RESERVED:
+            handle = m.group(1)
+        m2 = IG_TITLE_RE.search(title)
+        if not handle and m2:
+            handle = m2.group(1)
+        if handle:
+            out.append({"ig": handle.lower().rstrip("."), "title": title, "text": title + " " + (r.get("content") or "")})
+    return out
+
+
+def score_candidate(m: dict, c: dict) -> tuple[float, list[str]]:
+    """比對證據：店名相似度 + 地點（城市 / 路名 / 電話）。兩者都要有才採用。"""
+    why = []
+    names = [m.get("name"), m.get("registered_name")]
+    sim = max((len(bigrams(n) & bigrams(c["title"])) / max(len(bigrams(n)), 1) for n in names if n), default=0)
+    if sim >= 0.5:
+        why.append(f"店名相似 {sim:.0%}")
+    t = _tw(c["text"])
+    p = parse_address(m.get("address") or "")
+    loc = False
+    for k in (m.get("area"), (m.get("district") or "")[:-1] if m.get("district") else "", p.get("road")):
+        if k and len(k) >= 2 and _tw(k) in t:
+            why.append(f"提到「{k}」")
+            loc = True
+            break
+    digits = re.sub(r"\D", "", m.get("phone") or "")
+    if len(digits) >= 8 and digits[-8:] in re.sub(r"\D", "", c["text"]):
+        why.append("電話相符")
+        loc = True
+    return (sim if loc else 0.0), why
+
+
+def discover_ig(ms: list[dict], key: str, budget: int) -> None:
+    """用 Tavily 搜「店名 城市 instagram」，比對後寫入 cache/ig_discovery.json（版控，避免重複扣額度）。"""
+    p = CACHE / "ig_discovery.json"
+    cache = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    today = date.today()
+    used = 0
+    for m in ms:
+        if m.get("ig") or used >= budget:
+            continue
+        hit = cache.get(m["id"])
+        if hit and (hit.get("ig") or (today - date.fromisoformat(hit["checked"])).days < REDISCOVER_DAYS):
+            continue
+        q = f"{m['name']} {m.get('area') or m.get('district') or ''} instagram"
+        req = urllib.request.Request(
+            TAVILY_URL,
+            data=json.dumps({"query": q, "max_results": 5, "search_depth": "basic",
+                             "include_domains": ["instagram.com"]}).encode(),
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json", "User-Agent": USER_AGENT},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                res = json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            print(f"  ⚠ Tavily 錯誤 {e.code}：{e.read()[:200]!r}，停止搜尋")
+            break
+        used += 1
+        best = max(((score_candidate(m, c), c) for c in ig_candidates(res.get("results", []))),
+                   key=lambda x: x[0][0], default=None)
+        entry = {"checked": today.isoformat(), "query": q}
+        if best and best[0][0] >= 0.5:
+            entry |= {"ig": best[1]["ig"], "confidence": round(best[0][0], 2), "evidence": best[0][1]}
+            print(f"  ✓ {m['name']} → @{best[1]['ig']}（{'、'.join(best[0][1])}）")
+        cache[m["id"]] = entry
+        time.sleep(0.3)
+    CACHE.mkdir(exist_ok=True)
+    p.write_text(json.dumps(cache, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"  搜尋 {used} 次（本次上限 {budget}）")
+
+
+def apply_ig_sources() -> None:
+    """把自動比對與客人回報的 IG 套到店家（人工 / 網路資料優先，不覆蓋）。"""
+    ms = read_json("merchants.json")
+    by_id = {m["id"]: m for m in ms}
+    p = CACHE / "ig_discovery.json"
+    found = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    n_auto = n_ugc = 0
+    for mid, e in found.items():
+        m = by_id.get(mid)
+        if m and e.get("ig") and not m.get("ig"):
+            m["ig"], m["ig_source"] = e["ig"], "search"
+            n_auto += 1
+    url = site_config().get("report_responses_csv")
+    if url:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                rows = list(csv.reader(r.read().decode("utf-8-sig").splitlines()))
+            # 欄位順序：時間戳記, 店家ID, 店名, IG 帳號（Google 表單預設）
+            votes: dict[str, Counter] = {}
+            for row in rows[1:]:
+                if len(row) >= 4 and row[1].strip() in by_id and norm_ig(row[3]):
+                    votes.setdefault(row[1].strip(), Counter())[norm_ig(row[3])] += 1
+            for mid, c in votes.items():
+                m = by_id[mid]
+                handle, n = c.most_common(1)[0]
+                if not m.get("ig") or (m.get("ig_source") == "search" and n >= 2):
+                    m["ig"], m["ig_source"] = handle, "ugc"
+                    n_ugc += 1
+        except (urllib.error.URLError, OSError) as e:
+            print(f"  ⚠ 讀取客人回報失敗：{e}")
+    for m in ms:
+        if m.get("ig") and not m.get("ig_source"):
+            m["ig_source"] = "manual"
+    write_json("merchants.json", ms)
+    print(f"  IG：自動比對 {n_auto} 家、客人回報 {n_ugc} 家")
+
+
+def cmd_discover(args) -> None:
+    key = os.environ.get("TAVILY_API_KEY")
+    if not key:
+        sys.exit("缺少 TAVILY_API_KEY（填在 prototype/.env 或 GitHub Secrets）")
+    discover_ig(read_json("merchants.json"), key, args.budget)
+    apply_ig_sources()
+
+
 # ================================================================ 4. report
 
 def cmd_report(args) -> None:
@@ -706,11 +850,13 @@ def cmd_site(args) -> int:
             "prec": m.get("geo_precision"),
             "years": years_since(m.get("established") or ""),
             "verified": len(m.get("sources") or []) > 1,  # 多個獨立來源都指向同一家
+            "igSrc": m.get("ig_source") or "",
             "warn": next((h["label"] for h in vcfg.get("hints", [])
                           if f"提示：{h['label']}" in (m.get("notes") or "")), ""),
         })
     lms = city_landmarks(city) or [{"name": city, "lat": 0, "lng": 0}]
-    meta = {"city": city, "vertical": v, "updated": date.today().isoformat(), "landmarks": lms}
+    meta = {"city": city, "vertical": v, "updated": date.today().isoformat(), "landmarks": lms,
+            "reportUrl": site_config().get("report_form_prefill") or ""}
 
     def js(o):
         return json.dumps(o, ensure_ascii=False).replace("</", "<\\/")
@@ -873,6 +1019,12 @@ def cmd_build(args) -> None:
             cmd_import(ns(csv=extra, area=city, vertical=v))
     print("=== 4/6 地址定位（有快取，只查新地址）===")
     cmd_geocode(ns(force=False))
+    print("=== 4a 找 IG 帳號（自動比對 + 客人回報）===")
+    if os.environ.get("TAVILY_API_KEY"):
+        discover_ig(read_json("merchants.json"), os.environ["TAVILY_API_KEY"], budget=args.search_budget)
+    else:
+        print("  （沒有 TAVILY_API_KEY，只套用已找到的結果）")
+    apply_ig_sources()
     if os.environ.get("IG_ACCESS_TOKEN") and os.environ.get("IG_USER_ID"):
         print("=== 4b IG 作品 ===")
         cmd_ig(ns(media=12))
@@ -911,6 +1063,10 @@ def main() -> None:
     p.add_argument("--media", type=int, default=12)
     p.set_defaults(func=cmd_ig)
 
+    p = sub.add_parser("discover", help="用搜尋 API 找店家 IG（需 TAVILY_API_KEY）")
+    p.add_argument("--budget", type=int, default=20, help="最多搜尋幾次")
+    p.set_defaults(func=cmd_discover)
+
     sub.add_parser("report").set_defaults(func=cmd_report)
     sub.add_parser("sql").set_defaults(func=cmd_sql)
     p = sub.add_parser("site", help="產生網頁（data/public/<行業>/<城市>/index.html）")
@@ -923,6 +1079,7 @@ def main() -> None:
     g.add_argument("--city", nargs="+", help="一或多個城市，例：竹北市 大安區")
     g.add_argument("--all", action="store_true", help="所有行業 × 所有城市")
     p.add_argument("--vertical", nargs="+", help="行業（預設全部），例：nail")
+    p.add_argument("--search-budget", type=int, default=200, help="每次 build 最多搜尋幾次 IG（Tavily 免費 1000 次/月）")
     p.add_argument("--refresh", action="store_true", help="強制重新下載政府資料")
     p.set_defaults(func=cmd_build)
 

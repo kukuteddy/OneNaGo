@@ -46,7 +46,7 @@ CACHE = ROOT / "cache"        # 定位快取（保留並版控）與政府原始
 CONFIG = ROOT / "config" / "cities.json"
 NS = uuid.UUID("6f1c3a52-6a0e-4b8e-9a51-3d0c2f7e8b10")  # 決定性 UUID 命名空間
 
-USER_AGENT = "tw-local-guide/0.1"  # Nominatim 要求可識別的 UA
+USER_AGENT = "OneNaGo/0.1 (github.com/kukuteddy/OneNaGo)"  # Nominatim 要求可識別的 UA
 NOMINATIM = "https://nominatim.openstreetmap.org/search"
 
 
@@ -627,6 +627,54 @@ def city_landmarks(city: str) -> list[dict]:
     return out
 
 
+BRAND = ROOT.parent / "brand"
+BRAND_ORANGE, BRAND_PAPER = "#FF6827", "#FEFDF9"
+
+
+def favicon_uri() -> str:
+    svg = (BRAND / "app-icon.svg").read_text(encoding="utf-8")
+    svg = re.sub(r"\s+", " ", svg).strip()
+    # # 和 " 必須編碼：# 會被當成網址片段，" 會截斷 HTML 屬性
+    return "data:image/svg+xml," + urllib.parse.quote(svg, safe=" =:/'(),.-")
+
+
+def write_brand_assets() -> None:
+    """產生網站用的品牌素材：PWA manifest、圖示、首頁主視覺（來源是 brand/）。"""
+    pub = DATA / "public"
+    assets = pub / "assets"
+    assets.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(BRAND / "app-icon.svg", assets / "icon.svg")
+    shutil.copyfile(BRAND / "logo-pin.svg", assets / "logo-pin.svg")
+    icons = [{"src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml"}]
+    try:
+        from PIL import Image  # 選用：沒裝就只用 SVG
+
+        src = Image.open(BRAND / "source" / "app-icon.jpg").convert("RGB")
+        for n in (192, 512):
+            src.resize((n, n), Image.LANCZOS).save(assets / f"icon-{n}.png", optimize=True)
+            icons.append({"src": f"assets/icon-{n}.png", "sizes": f"{n}x{n}", "type": "image/png", "purpose": "any maskable"})
+        hero = Image.open(BRAND / "source" / "banner-hero.jpg").convert("RGB")
+        w, h = hero.size
+        photo = hero.crop((int(w * 0.5), 0, w, h))  # 右半邊騎樓照片
+        photo.thumbnail((900, 900), Image.LANCZOS)
+        photo.save(assets / "hero.webp", quality=72, method=6)
+    except ImportError:
+        print("  （未安裝 Pillow，略過 PNG 圖示與主視覺）")
+    manifest = {
+        "name": "玩哪走 OneNaGo",
+        "short_name": "OneNaGo",
+        "description": "台灣在地生活指南",
+        "lang": "zh-Hant-TW",
+        "start_url": "./",
+        "scope": "./",
+        "display": "standalone",
+        "background_color": BRAND_PAPER,
+        "theme_color": BRAND_ORANGE,
+        "icons": icons,
+    }
+    (pub / "manifest.webmanifest").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def standalone_page(body: str) -> str:
     return ('<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
@@ -670,7 +718,7 @@ def cmd_site(args) -> int:
     body = (ROOT / "templates" / "app.html").read_text(encoding="utf-8")
     for k, val in {"__CITY__": city, "__VNAME__": vcfg["name"], "__SOURCE_NOTE__": vcfg.get("source_note", "")}.items():
         body = body.replace(k, html.escape(val))
-    body = body.replace("__META__", js(meta)).replace("__DATA__", js(rows))
+    body = body.replace("__META__", js(meta)).replace("__DATA__", js(rows)).replace("__FAVICON__", favicon_uri())
     # 公開網站：/<行業>/<城市>/（GitHub Pages / Cloudflare Pages / 本機雙擊）
     pub = DATA / "public" / v / slug
     pub.mkdir(parents=True, exist_ok=True)
@@ -684,41 +732,79 @@ def cmd_site(args) -> int:
 
 
 def write_home(counts: dict[tuple[str, str], int]) -> None:
-    """網站首頁：依行業分組的城市列表。"""
+    """網站首頁：品牌主視覺 + 依行業分組的城市列表。"""
+    write_brand_assets()
     cities = json.loads(CONFIG.read_text(encoding="utf-8"))
     vcfg = load_verticals()
+    total = sum(counts.values())
     sections = []
     for v in dict.fromkeys(v for v, _ in counts):
         cards = "".join(
             f'<a class="c" href="{html.escape(v)}/{html.escape(cities[c].get("slug") or c)}/">'
-            f'<b>{html.escape(c)}</b><span>{html.escape(cities[c].get("county", ""))}・{n} 家</span></a>'
+            f'<b>{html.escape(c)}</b><span>{html.escape(cities[c].get("county", ""))}・{n} 家</span>'
+            f'<i aria-hidden="true">›</i></a>'
             for (vv, c), n in counts.items() if vv == v
         )
-        sections.append(f'<h2>{html.escape(vcfg[v]["name"])}</h2><div class="g">{cards}</div>')
-    items = "".join(sections)
-    body = f"""<title>在地生活指南</title>
+        sections.append(f'<section><h2>{html.escape(vcfg[v]["name"])}</h2><div class="g">{cards}</div></section>')
+    hero_img = '<img class="photo" src="assets/hero.webp" alt="台灣騎樓街景">' if (DATA / "public" / "assets" / "hero.webp").exists() else ""
+    body = f"""<title>玩哪走 OneNaGo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="{BRAND_ORANGE}">
+<meta name="description" content="玩哪走 OneNaGo：台灣在地生活指南。依行業、城市一次比較附近店家。">
+<link rel="icon" href="{favicon_uri()}">
+<link rel="manifest" href="manifest.webmanifest">
 <style>
-:root {{ --bg:#f4f2f1; --surface:#fff; --ink:#222; --ink-2:#6f6866; --line:#ece8e6; --accent:#ff5b3a; }}
-@media (prefers-color-scheme: dark) {{ :root:not([data-theme="light"]) {{ --bg:#121010; --surface:#1d1a19; --ink:#f1edeb; --ink-2:#b3aaa6; --line:#2d2928; --accent:#ff7a5c; color-scheme:dark; }} }}
-:root[data-theme="dark"] {{ --bg:#121010; --surface:#1d1a19; --ink:#f1edeb; --ink-2:#b3aaa6; --line:#2d2928; --accent:#ff7a5c; color-scheme:dark; }}
+/* Layout: 品牌主視覺（左字右照）＋ 依行業分組的城市卡片 */
+:root {{ --bg:#f6f4f2; --surface:#fff; --ink:#222; --ink-2:#6f6866; --line:#ece8e6; --brand:{BRAND_ORANGE}; --paper:{BRAND_PAPER}; }}
+@media (prefers-color-scheme: dark) {{ :root:not([data-theme="light"]) {{ --bg:#121010; --surface:#1d1a19; --ink:#f1edeb; --ink-2:#b3aaa6; --line:#2d2928; --brand:#FF7A45; --paper:#1d1a19; color-scheme:dark; }} }}
+:root[data-theme="dark"] {{ --bg:#121010; --surface:#1d1a19; --ink:#f1edeb; --ink-2:#b3aaa6; --line:#2d2928; --brand:#FF7A45; --paper:#1d1a19; color-scheme:dark; }}
+* {{ box-sizing:border-box; }}
 body {{ margin:0; background:var(--bg); color:var(--ink); font:15px system-ui,-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif; }}
-main {{ max-width:560px; margin:0 auto; padding-block:32px; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); display:grid; gap:12px; }}
-h1 {{ margin:0; font-size:24px; }} h1 em {{ color:var(--accent); font-style:normal; }}
-p {{ margin:0 0 8px; color:var(--ink-2); }}
-.c {{ display:grid; gap:2px; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px; color:inherit; text-decoration:none; }}
-.c:hover, .c:focus-visible {{ border-color:var(--accent); }}
+.wrap {{ max-width:880px; margin:0 auto; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }}
+.hero {{ background:var(--paper); border-bottom:1px solid var(--line); }}
+.hero .wrap {{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:24px; align-items:center; padding-block:28px; }}
+.mark {{ width:72px; height:auto; display:block; }}
+h1 {{ margin:14px 0 4px; font-size:clamp(34px, 7vw, 52px); line-height:1.05; font-weight:900; letter-spacing:.02em; text-wrap:balance; }}
+.en {{ display:block; font-size:.62em; font-weight:800; letter-spacing:0; color:var(--brand); margin-top:6px; font-family:"Avenir Next","Segoe UI",system-ui,sans-serif; }}
+.tag {{ margin:10px 0 0; font-size:18px; color:var(--ink-2); }}
+.rule {{ width:120px; height:5px; border-radius:5px; background:var(--brand); margin-top:16px; }}
+.stat {{ margin-top:14px; font-size:13px; color:var(--ink-2); font-variant-numeric:tabular-nums; }}
+.photo {{ width:100%; max-width:100%; aspect-ratio:4/5; object-fit:cover; border-radius:16px; display:block; }}
+main.wrap {{ padding-block:8px 32px; display:grid; gap:8px; }}
+h2 {{ margin:20px 0 10px; font-size:17px; display:flex; align-items:center; gap:8px; }}
+h2::before {{ content:""; width:4px; height:16px; border-radius:2px; background:var(--brand); }}
+.g {{ display:grid; gap:10px; grid-template-columns:repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }}
+.c {{ position:relative; display:grid; gap:3px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px 36px 16px 16px; color:inherit; text-decoration:none; }}
+.c:hover, .c:focus-visible {{ border-color:var(--brand); outline:none; }}
+.c b {{ font-size:17px; }}
 .c span {{ color:var(--ink-2); font-size:13px; }}
-h2 {{ margin:16px 0 0; font-size:16px; }}
-.g {{ display:grid; gap:10px; grid-template-columns:repeat(auto-fill, minmax(min(200px, 100%), 1fr)); }}
-footer {{ color:var(--ink-2); font-size:12px; margin-top:12px; }}
+.c i {{ position:absolute; right:14px; top:50%; transform:translateY(-50%); font-style:normal; font-size:22px; color:var(--brand); }}
+.soon {{ color:var(--ink-2); font-size:13px; margin-top:6px; }}
+footer {{ color:var(--ink-2); font-size:12px; padding-block:8px 32px; line-height:1.6; }}
+@media (max-width:640px) {{
+  .hero .wrap {{ grid-template-columns:1fr; }}
+  .photo {{ aspect-ratio:16/10; }}
+}}
 </style>
-<main>
-  <h1><em>在地</em>生活指南</h1>
-  <p>選行業、選城市，一次比較附近的店家。</p>
-  {items}
-  <footer>資料每週自動更新，來源為財政部稅籍登記與公開網路資訊。更新於 {date.today().isoformat()}</footer>
-</main>"""
-    (DATA / "public").mkdir(parents=True, exist_ok=True)
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <img class="mark" src="assets/logo-pin.svg" alt="">
+      <h1>玩哪走<span class="en">OneNaGo</span></h1>
+      <p class="tag">台灣在地生活指南</p>
+      <div class="rule"></div>
+      <p class="stat">已收錄 {total} 家店家，每週自動更新</p>
+    </div>
+    {hero_img}
+  </div>
+</header>
+<main class="wrap">
+  {"".join(sections)}
+  <p class="soon">更多行業與城市陸續加入中。</p>
+</main>
+<footer class="wrap">
+  © 玩哪走 OneNaGo・資料來源為財政部稅籍登記與公開網路資訊，自動彙整，非合作店家。更新於 {date.today().isoformat()}
+</footer>"""
     (DATA / "public" / "index.html").write_text(standalone_page(body), encoding="utf-8")
     print(f"→ {DATA / 'public' / 'index.html'}（首頁）")
 

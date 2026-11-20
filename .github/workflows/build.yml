@@ -1,4 +1,4 @@
-name: 每週更新美甲地圖
+name: 玩哪走 OneNaGo 每週更新
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:        # 也可在 GitHub 網頁 Actions 分頁手動按「Run workflow」
   push:
     branches: [main]
-    paths: ["prototype/**", ".github/workflows/**"]
+    paths: ["prototype/**", "brand/**", ".github/workflows/**"]
 
 permissions:
   contents: write   # 回存定位快取
@@ -30,6 +30,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+
+      - name: 安裝 Pillow（產生 App 圖示與主視覺）
+        run: pip install pillow
 
       - name: 還原政府原始檔快取（300MB，不進版控）
         uses: actions/cache@v4

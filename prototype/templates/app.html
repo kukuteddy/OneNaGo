@@ -1,5 +1,9 @@
-<title>__CITY____VNAME__地圖</title>
+<title>__CITY____VNAME__｜玩哪走</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#FF6827">
+<meta name="description" content="玩哪走 OneNaGo：__CITY____VNAME__店家一次比較，距離、開業年資、作品連結都在這裡。">
+<link rel="icon" href="__FAVICON__">
+<link rel="manifest" href="../../manifest.webmanifest">
 <style>
 /* Layout: 點評式密集清單 — 黏性搜尋列 + 下拉篩選列 + 左圖右文卡片；地圖為切換視圖 */
 :root {
@@ -9,8 +13,8 @@
   --ink-2: #6f6866;
   --ink-3: #a59d9a;
   --line: #ece8e6;
-  --accent: #ff5b3a;          /* 主色：點評系橘紅 */
-  --accent-soft: #fff0eb;
+  --accent: #FF6827;          /* 品牌橘（玩哪走 OneNaGo） */
+  --accent-soft: #fff0e8;
   --gold: #c98a1b;
   --gold-soft: #fdf4e3;
   --ok: #1f9d6b;
@@ -21,13 +25,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #121010; --surface: #1d1a19; --ink: #f1edeb; --ink-2: #b3aaa6; --ink-3: #7d7471;
-    --line: #2d2928; --accent: #ff7a5c; --accent-soft: #3a211b; --gold: #e7ad45; --gold-soft: #33280f;
+    --line: #2d2928; --accent: #FF7A45; --accent-soft: #3a2116; --gold: #e7ad45; --gold-soft: #33280f;
     --ok: #4cc795; --ok-soft: #12291f; --warn: #e3a64c; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #121010; --surface: #1d1a19; --ink: #f1edeb; --ink-2: #b3aaa6; --ink-3: #7d7471;
-  --line: #2d2928; --accent: #ff7a5c; --accent-soft: #3a211b; --gold: #e7ad45; --gold-soft: #33280f;
+  --line: #2d2928; --accent: #FF7A45; --accent-soft: #3a2116; --gold: #e7ad45; --gold-soft: #33280f;
   --ok: #4cc795; --ok-soft: #12291f; --warn: #e3a64c; color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -43,6 +47,8 @@ button, select, input { font: inherit; color: inherit; }
 /* ---------- header ---------- */
 .top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
 .searchrow { display: flex; gap: 10px; align-items: center; padding-block: 10px 6px; }
+.brand { flex: none; display: block; width: 34px; height: 34px; }
+.brand img { width: 34px; height: 34px; display: block; border-radius: 9px; }
 .city { font-weight: 700; font-size: 16px; white-space: nowrap; }
 .city small { display: block; font-weight: 400; font-size: 11px; color: var(--ink-3); }
 .search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; background: var(--bg); border-radius: 99px; padding: 8px 14px; }
@@ -113,6 +119,7 @@ footer { padding-block: 18px 28px; color: var(--ink-3); font-size: 12px; line-he
 <header class="top">
   <div>
     <div class="searchrow gutter">
+      <a class="brand" href="../../" aria-label="玩哪走 首頁"><img src="__FAVICON__" alt=""></a>
       <div class="city">__CITY__<small><a href="../../">__VNAME__ ▾</a></small></div>
       <label class="search" for="q">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -149,6 +156,7 @@ footer { padding-block: 18px 28px; color: var(--ink-3); font-size: 12px; line-he
 </main>
 
 <footer class="gutter">
+  <b>玩哪走 OneNaGo</b>・台灣在地生活指南<br>
   __SOURCE_NOTE__
   招牌名稱、IG 與營業狀況以店家公告為準。店家可來信認領或更正資料。
 </footer>

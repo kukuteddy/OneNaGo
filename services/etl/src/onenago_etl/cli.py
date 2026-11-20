@@ -131,6 +131,16 @@ def cmd_migrate(args: argparse.Namespace) -> None:
     log.info("套用 %d 個：%s", len(applied), "、".join(applied) or "（都已是最新）")
 
 
+def cmd_add_admin(args: argparse.Namespace) -> None:
+    db_url = env("SUPABASE_DB_URL")
+    if not db_url:
+        raise SystemExit("缺少 SUPABASE_DB_URL")
+    if loader.add_admin(db_url, args.email):
+        log.info("已設為管理者（帳號已存在於 Supabase Auth）")
+    else:
+        raise SystemExit("找不到這個 Email 的帳號：請先在 Supabase → Authentication → Users → Add user 建立")
+
+
 def main(argv: list[str] | None = None) -> None:
     load_dotenv()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -153,6 +163,10 @@ def main(argv: list[str] | None = None) -> None:
 
     m = sub.add_parser("migrate", help="套用 supabase/migrations/")
     m.set_defaults(func=cmd_migrate)
+
+    a = sub.add_parser("add-admin", help="把 Supabase Auth 帳號設為管理者（可登入 /admin/ 審核）")
+    a.add_argument("email")
+    a.set_defaults(func=cmd_add_admin)
 
     args = ap.parse_args(argv)
     args.func(args)

@@ -42,6 +42,7 @@ export interface Shop {
   established: string | null; // YYYY-MM-DD
   sources: string[];
   hints: string[];
+  claimed: boolean;
 }
 
 /** 使用者補充（瀏覽器端即時讀取後合併）。 */
@@ -51,4 +52,5 @@ export interface Community {
   price?: number;
   warning?: string;
   photos: { path: string; price: number | null }[];
+  rating?: { avg: number; count: number };
 }

@@ -11,6 +11,16 @@ export function supabase(): SupabaseClient {
   return client;
 }
 
+let admin: SupabaseClient | null = null;
+
+/** 管理頁專用：會保存登入狀態（只在瀏覽器使用）。權限由 admins 資料表與 RLS 決定。 */
+export function adminClient(): SupabaseClient {
+  admin ??= createClient(SITE.supabase.url, SITE.supabase.publishableKey, {
+    auth: { persistSession: true, autoRefreshToken: true, storageKey: "onenago-admin" },
+  });
+  return admin;
+}
+
 export function photoUrl(path: string): string {
   return `${SITE.supabase.url}/storage/v1/object/public/ugc-photos/u/${encodeURIComponent(path)}`;
 }

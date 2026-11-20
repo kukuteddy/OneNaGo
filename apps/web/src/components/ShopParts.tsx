@@ -55,6 +55,12 @@ export function ShopBadges({ shop, community }: { shop: Shop; community?: Commun
   const years = yearsOpen(shop);
   return (
     <div className="flex flex-wrap gap-1.5">
+      {shop.claimed && <Chip tone="ok">✓ 店家已認領</Chip>}
+      {community?.rating && (
+        <Chip tone="gold">
+          ★ {community.rating.avg.toFixed(1)}（{community.rating.count} 則評論）
+        </Chip>
+      )}
       {years != null &&
         (years < 1 ? <Chip tone="brand">新開幕</Chip> : <Chip tone="gold">開業 {Math.floor(years)} 年</Chip>)}
       {shop.sources.length > 1 && <Chip tone="ok">多來源核對</Chip>}

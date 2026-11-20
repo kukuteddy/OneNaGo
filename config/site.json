@@ -5,5 +5,8 @@
   "supabase": {
     "url": "https://kkgedobyxbufkywuxkzy.supabase.co",
     "publishableKey": "sb_publishable_TdUeypg8MhEvEzzyxSNrgA_kA4Ic-2G"
+  },
+  "turnstile": {
+    "siteKey": ""
   }
 }

@@ -44,7 +44,10 @@ export function withCommunity(shop: Shop, c: Community | undefined) {
 export function rankScore(shop: Shop, c: Community | undefined): number {
   const v = withCommunity(shop, c);
   const years = yearsOpen(shop) ?? 0;
+  const rating = c?.rating ? (c.rating.avg - 3) * Math.min(c.rating.count, 10) * 2 : 0;
   return (
+    (shop.claimed ? 35 : 0) +
+    rating +
     (shop.sources.length > 1 ? 40 : 0) +
     (v.photos.length ? 30 : 0) +
     (v.ig ? 25 : 0) +

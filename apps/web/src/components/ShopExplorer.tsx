@@ -204,13 +204,18 @@ export function ShopExplorer({ vertical, city, shops }: { vertical: Vertical; ci
           <span>
             {rows.length} 家店{landmark ? `・距離以「${landmark.name}」計算` : ""}
           </span>
-          <button
-            type="button"
-            className="cursor-pointer text-brand"
-            onClick={() => openContribute({ newShop: { vertical: vertical.slug, cityName: city.name } })}
-          >
-            ＋ 新增店家
-          </button>
+          <span className="flex gap-3">
+            <Link href={`/${vertical.slug}/${city.slug}/works/`} className="text-brand">
+              作品牆 ›
+            </Link>
+            <button
+              type="button"
+              className="cursor-pointer text-brand"
+              onClick={() => openContribute({ newShop: { vertical: vertical.slug, cityName: city.name } })}
+            >
+              ＋ 新增店家
+            </button>
+          </span>
         </div>
 
         {view === "list" ? (

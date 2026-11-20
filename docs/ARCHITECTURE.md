@@ -65,8 +65,11 @@ OneNaGo/
 | `merchants` | 店家：名稱、地址、座標、IG、開業日、來源 | 公開讀（只有營業中的）；ETL 寫 |
 | `merchant_verticals` | 店家 × 行業 | 公開讀；ETL 寫 |
 | `reports` | 使用者補充（IG、價格、照片、歇業…） | **只能新增**；管理者審核 |
-| `report_summary`（view） | 彙整後的回報 | 公開讀 |
-| `approved_photos`（view） | 審核通過的照片 | 公開讀 |
+| `reviews` | 評論（星等＋心得） | **只能新增**；管理者審核 |
+| `claims` | 店家認領申請（含聯絡方式） | **只能新增**；只有管理者看得到 |
+| `admins` | 管理者名單（Supabase Auth 帳號） | 只能讀自己 |
+| `report_summary`、`approved_photos`、`photo_wall`（views） | 彙整後的回報、審核通過的照片 | 公開讀 |
+| `approved_reviews`、`review_stats`（views） | 公開評論、平均評分 | 公開讀 |
 
 店家 ID 依「統一編號 → IG → 店名＋地址」產生，**每次執行都一樣**，所以使用者回報可以一直對應到同一家店。
 
@@ -104,8 +107,9 @@ OneNaGo/
 ## 待辦
 
 - [x] 資料庫為唯一真相、ETL 模組化與測試、Next.js 網站、店家詳細頁、CI 檢查（v0.2）
-- [ ] 投稿加 Cloudflare Turnstile（防灌水）
-- [ ] 管理審核頁（Supabase Auth 登入）
+- [x] 管理審核頁 `/admin/`（Supabase Auth 登入、admins 名單、RLS）
+- [x] 評論（先審核後公開、平均評分）、店家認領（審核通過自動標記）、作品牆 `/[行業]/[城市]/works/`
+- [~] 投稿加 Cloudflare Turnstile：程式與 Edge Function 完成，待填入 Key 後啟用（見 ADMIN.md）
 - [x] 部署到 Cloudflare Pages（https://onenago.pages.dev）
 - [ ] 前期用 Cloudflare Access 限定 Email 才能看；GitHub 專案改私人、停用 GitHub Pages
-- [ ] 店家認領、作品牆、評論
+- [ ] 店家認領後自助編輯資料（需要店家帳號）、會員登入後即時發表評論

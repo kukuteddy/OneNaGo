@@ -21,9 +21,15 @@ interface PhotoRow {
   price_twd: number | null;
 }
 
+interface StatRow {
+  merchant_id: string;
+  reviews: number;
+  rating: number;
+}
+
 export type CommunityMap = Map<string, Community>;
 
-export function buildCommunity(summary: SummaryRow[], photos: PhotoRow[]): CommunityMap {
+export function buildCommunity(summary: SummaryRow[], photos: PhotoRow[], stats: StatRow[] = []): CommunityMap {
   const map: CommunityMap = new Map();
   const get = (id: string) => {
     let c = map.get(id);
@@ -40,6 +46,7 @@ export function buildCommunity(summary: SummaryRow[], photos: PhotoRow[]): Commu
     }
   }
   for (const p of photos) get(p.merchant_id).photos.push({ path: p.photo_path, price: p.price_twd });
+  for (const r of stats) get(r.merchant_id).rating = { avg: r.rating, count: r.reviews };
   return map;
 }
 
@@ -55,9 +62,17 @@ export function useCommunity(merchantIds?: string[]): CommunityMap {
       .from("approved_photos")
       .select("merchant_id,photo_path,price_twd")
       .order("created_at", { ascending: false });
-    Promise.all([ids ? summary.in("merchant_id", ids) : summary, ids ? photos.in("merchant_id", ids) : photos])
-      .then(([s, p]) => {
-        if (alive) setMap(buildCommunity((s.data ?? []) as SummaryRow[], (p.data ?? []) as PhotoRow[]));
+    const stats = supabase().from("review_stats").select("merchant_id,reviews,rating");
+    Promise.all([
+      ids ? summary.in("merchant_id", ids) : summary,
+      ids ? photos.in("merchant_id", ids) : photos,
+      ids ? stats.in("merchant_id", ids) : stats,
+    ])
+      .then(([s, p, r]) => {
+        if (alive)
+          setMap(
+            buildCommunity((s.data ?? []) as SummaryRow[], (p.data ?? []) as PhotoRow[], (r.data ?? []) as StatRow[]),
+          );
       })
       .catch(() => {});
     return () => {

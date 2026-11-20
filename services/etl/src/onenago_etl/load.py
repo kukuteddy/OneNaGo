@@ -120,6 +120,21 @@ def load(
     log.info("寫入 Supabase：%d 家店（標為停業 %d 家）", len(ms), deactivated)
 
 
+def add_admin(db_url: str, email: str) -> bool:
+    """把 Supabase Auth 裡這個 Email 的帳號設為管理者。找不到帳號回傳 False。"""
+    with psycopg.connect(db_url, autocommit=False) as conn, conn.cursor() as cur:
+        cur.execute(
+            "insert into public.admins (user_id) select id from auth.users where lower(email) = lower(%s) "
+            "on conflict do nothing returning user_id",
+            (email,),
+        )
+        added = cur.fetchone() is not None
+        cur.execute("select exists (select 1 from auth.users where lower(email) = lower(%s))", (email,))
+        row = cur.fetchone()
+        conn.commit()
+    return added or bool(row and row[0])
+
+
 def migrate(db_url: str, migrations_dir: Path) -> list[str]:
     """依檔名順序套用 supabase/migrations/*.sql；已套用的記錄在 public.schema_migrations。"""
     applied: list[str] = []

@@ -1,0 +1,3 @@
+name,kind,ig,address,phone,line,booking_url,price_from,notes
+# 範例列（# 開頭的列會略過）。kind：shop 實體店 / studio 工作室 / mobile 到府,,,,,,,,
+# ig 可填 @帳號 或完整網址；price_from 填單色凝膠（手）起價,,,,,,,,

@@ -1,0 +1,302 @@
+<title>__CITY____VNAME__地圖</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: 點評式密集清單 — 黏性搜尋列 + 下拉篩選列 + 左圖右文卡片；地圖為切換視圖 */
+:root {
+  --bg: #f4f2f1;
+  --surface: #ffffff;
+  --ink: #222222;
+  --ink-2: #6f6866;
+  --ink-3: #a59d9a;
+  --line: #ece8e6;
+  --accent: #ff5b3a;          /* 主色：點評系橘紅 */
+  --accent-soft: #fff0eb;
+  --gold: #c98a1b;
+  --gold-soft: #fdf4e3;
+  --ok: #1f9d6b;
+  --ok-soft: #e7f6ef;
+  --warn: #b7791f;
+  --font: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121010; --surface: #1d1a19; --ink: #f1edeb; --ink-2: #b3aaa6; --ink-3: #7d7471;
+    --line: #2d2928; --accent: #ff7a5c; --accent-soft: #3a211b; --gold: #e7ad45; --gold-soft: #33280f;
+    --ok: #4cc795; --ok-soft: #12291f; --warn: #e3a64c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121010; --surface: #1d1a19; --ink: #f1edeb; --ink-2: #b3aaa6; --ink-3: #7d7471;
+  --line: #2d2928; --accent: #ff7a5c; --accent-soft: #3a211b; --gold: #e7ad45; --gold-soft: #33280f;
+  --ok: #4cc795; --ok-soft: #12291f; --warn: #e3a64c; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { overflow-x: hidden; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+a { color: inherit; text-decoration: none; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* ---------- header ---------- */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+.searchrow { display: flex; gap: 10px; align-items: center; padding-block: 10px 6px; }
+.city { font-weight: 700; font-size: 16px; white-space: nowrap; }
+.city small { display: block; font-weight: 400; font-size: 11px; color: var(--ink-3); }
+.search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; background: var(--bg); border-radius: 99px; padding: 8px 14px; }
+.search svg { flex: none; color: var(--ink-3); }
+.search input { border: 0; background: transparent; outline: none; width: 100%; min-width: 0; }
+.viewbtn { flex: none; display: grid; justify-items: center; gap: 1px; background: none; border: 0; padding: 2px 4px; cursor: pointer; font-size: 11px; color: var(--ink-2); }
+.viewbtn svg { color: var(--ink); }
+
+.tabs { display: flex; gap: 22px; overflow-x: auto; scrollbar-width: none; padding-block: 4px 0; }
+.tabs button { background: none; border: 0; padding: 8px 0 10px; font-size: 15px; color: var(--ink-2); cursor: pointer; position: relative; white-space: nowrap; }
+.tabs button[aria-pressed="true"] { color: var(--ink); font-weight: 700; }
+.tabs button[aria-pressed="true"]::after { content: ""; position: absolute; left: 20%; right: 20%; bottom: 4px; height: 3px; border-radius: 3px; background: var(--accent); }
+.tabs .count { font-size: 11px; color: var(--ink-3); margin-left: 2px; font-weight: 400; }
+
+.filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+.filters label { position: relative; display: flex; justify-content: center; }
+.filters select { appearance: none; -webkit-appearance: none; border: 0; background: transparent; padding: 10px 18px 10px 6px; text-align: center; text-align-last: center; cursor: pointer; max-width: 100%; color: var(--ink); }
+.filters label::after { content: ""; position: absolute; right: calc(50% - 40px); top: 50%; margin-top: -2px; border: 4px solid transparent; border-top-color: var(--ink-3); pointer-events: none; }
+
+/* ---------- list ---------- */
+.summary { padding-block: 10px; color: var(--ink-2); font-size: 12px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.list { display: grid; gap: 1px; background: var(--line); border-block: 1px solid var(--line); }
+.item { background: var(--surface); display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; padding-block: 14px; scroll-margin-top: 140px; }
+.item.flash { animation: flash 1.2s ease-out; }
+@keyframes flash { from { background: var(--accent-soft); } to { background: var(--surface); } }
+.thumb { width: 88px; height: 88px; max-width: 100%; border-radius: 8px; display: grid; place-items: center; font-size: 30px; font-weight: 700; color: #fff; position: relative; overflow: hidden; }
+.thumb small { position: absolute; bottom: 0; left: 0; right: 0; font-size: 10px; font-weight: 400; background: rgba(0,0,0,.28); text-align: center; padding: 2px 0; }
+.body { min-width: 0; display: grid; gap: 5px; align-content: start; }
+.name { font-size: 16px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.name .kind { font-size: 11px; font-weight: 400; color: var(--ink-2); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; margin-left: 4px; vertical-align: 2px; }
+.reg { font-size: 12px; color: var(--ink-3); }
+.meta { display: flex; justify-content: space-between; gap: 8px; color: var(--ink-2); font-size: 13px; }
+.meta .road { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.meta .dist { flex: none; font-variant-numeric: tabular-nums; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; padding: 2px 6px; border-radius: 3px; background: var(--bg); color: var(--ink-2); }
+.chip.years { background: var(--gold-soft); color: var(--gold); }
+.chip.ok { background: var(--ok-soft); color: var(--ok); }
+.chip.new { background: var(--accent-soft); color: var(--accent); }
+.chip.warn { background: transparent; color: var(--warn); border: 1px dashed currentColor; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; align-items: center; }
+.actions a { font-size: 12px; border: 1px solid var(--accent); color: var(--accent); border-radius: 99px; padding: 3px 10px; }
+.actions a.primary { background: var(--accent); color: #fff; }
+.actions .phone { font-size: 12px; color: var(--ink-3); user-select: all; font-variant-numeric: tabular-nums; }
+.empty { background: var(--surface); padding: 40px 16px; text-align: center; color: var(--ink-2); }
+.more { display: block; width: 100%; padding: 14px; background: var(--surface); border: 0; color: var(--accent); cursor: pointer; }
+
+/* ---------- map ---------- */
+.mapwrap { padding-block: 12px; }
+.map { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.map svg { display: block; width: 100%; height: auto; max-width: 100%; }
+.map .pin { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; cursor: pointer; }
+.map .pin.approx { fill: var(--ink-3); }
+.map .pin:hover, .map .pin:focus { fill: var(--gold); outline: none; }
+.map .lm { fill: var(--ink); }
+.map .lmtext { fill: var(--ink-2); font-size: 11px; }
+.map .grid { stroke: var(--line); stroke-width: 1; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); padding-block: 8px 0; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+
+footer { padding-block: 18px 28px; color: var(--ink-3); font-size: 12px; line-height: 1.6; }
+@media (prefers-reduced-motion: reduce) { .item.flash { animation: none; } }
+@media (min-width: 760px) {
+  main, .top > div, footer { max-width: 760px; margin-inline: auto; }
+}
+</style>
+
+<header class="top">
+  <div>
+    <div class="searchrow gutter">
+      <div class="city">__CITY__<small><a href="../../">__VNAME__ ▾</a></small></div>
+      <label class="search" for="q">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="搜尋店名、路名" autocomplete="off">
+      </label>
+      <button class="viewbtn" id="viewbtn" type="button" aria-label="切換地圖">
+        <svg id="viewicon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+        <span id="viewlabel">地圖</span>
+      </button>
+    </div>
+    <nav class="tabs gutter" id="tabs" aria-label="快速篩選"></nav>
+    <div class="filters gutter">
+      <label for="from"><select id="from" aria-label="距離起點"></select></label>
+      <label for="kind"><select id="kind" aria-label="類型">
+        <option value="">全部類型</option><option value="shop">實體店</option><option value="studio">工作室</option>
+      </select></label>
+      <label for="sort"><select id="sort" aria-label="排序">
+        <option value="rec">智能排序</option><option value="dist">離我最近</option>
+        <option value="old">開業最久</option><option value="new">最新開業</option>
+      </select></label>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="summary gutter"><span id="summary"></span><span id="updated"></span></div>
+  <section id="listview">
+    <div class="list" id="list"></div>
+  </section>
+  <section id="mapview" class="mapwrap gutter" hidden>
+    <div class="map" id="map"></div>
+    <div class="legend"><span><i style="background:var(--accent)"></i>門牌定位</span><span><i style="background:var(--ink-3)"></i>約略位置</span><span><i style="background:var(--ink);border-radius:2px"></i>地標</span></div>
+  </section>
+</main>
+
+<footer class="gutter">
+  __SOURCE_NOTE__
+  招牌名稱、IG 與營業狀況以店家公告為準。店家可來信認領或更正資料。
+</footer>
+
+<script>
+const META = __META__;
+const DATA = __DATA__;
+const LANDMARKS = META.landmarks;
+const PAGE = 30;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+const state = { q: "", tab: "all", from: 0, kind: "", sort: "rec", view: "list", shown: PAGE };
+
+const TABS = [
+  { id: "all", label: "全部", test: () => true },
+  { id: "ig", label: "有 IG 作品", test: m => !!m.ig },
+  { id: "verified", label: "已核對", test: m => m.verified },
+  { id: "new", label: "新開幕", test: m => m.years != null && m.years < 1 },
+  { id: "veteran", label: "老店 5 年+", test: m => m.years != null && m.years >= 5 },
+];
+
+function km(a, b) {
+  const R = 6371, r = x => x * Math.PI / 180;
+  const dLat = r(b[0] - a[0]), dLng = r(b[1] - a[1]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a[0])) * Math.cos(r(b[0])) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function fmtDist(d) { return d == null ? "" : d < 1 ? Math.round(d * 1000 / 10) * 10 + "m" : d.toFixed(1) + "km"; }
+function hue(s) { let h = 0; for (const c of s) h = (h * 31 + c.codePointAt(0)) % 360; return h; }
+function initial(name) { const m = name.match(/[一-鿿A-Za-z]/); return m ? m[0].toUpperCase() : "甲"; }
+
+function score(m) {
+  return (m.verified ? 40 : 0) + (m.ig ? 25 : 0) + (m.line ? 8 : 0) + (m.prec === "address" ? 5 : 0)
+       + Math.min(m.years ?? 0, 10) * 2 - (m.warn ? 30 : 0);
+}
+
+function filtered() {
+  const tab = TABS.find(t => t.id === state.tab);
+  const lm = LANDMARKS[state.from];
+  const q = state.q.trim().toLowerCase();
+  let rows = DATA.filter(m => tab.test(m)
+    && (!state.kind || m.kind === state.kind)
+    && (!q || (m.name + m.reg + m.address + (m.ig || "")).toLowerCase().includes(q)));
+  rows.forEach(m => m.dist = m.lat != null ? km([lm.lat, lm.lng], [m.lat, m.lng]) : null);
+  const by = {
+    rec: (a, b) => score(b) - score(a),
+    dist: (a, b) => (a.dist ?? 1e9) - (b.dist ?? 1e9),
+    old: (a, b) => (b.years ?? -1) - (a.years ?? -1),
+    new: (a, b) => (a.years ?? 1e9) - (b.years ?? 1e9),
+  }[state.sort];
+  return rows.sort((a, b) => by(a, b) || a.name.localeCompare(b.name, "zh-Hant"));
+}
+
+function card(m) {
+  const chips = [];
+  if (m.years != null) chips.push(m.years < 1 ? `<span class="chip new">新開幕</span>` : `<span class="chip years">開業 ${Math.floor(m.years)} 年</span>`);
+  if (m.verified) chips.push(`<span class="chip ok">多來源核對</span>`);
+  if (m.ig) chips.push(`<span class="chip">IG 作品</span>`);
+  if (m.line) chips.push(`<span class="chip">LINE 預約</span>`);
+  if (m.warn) chips.push(`<span class="chip warn">${esc(m.warn)}</span>`);
+  if (m.lat == null) chips.push(`<span class="chip warn">待補地址</span>`);
+  const gmaps = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(m.name + " " + m.address);
+  const line = m.line ? (m.line.startsWith("http") ? m.line : "https://line.me/R/ti/p/" + m.line) : "";
+  return `<article class="item gutter" id="m-${m.id}">
+    <div class="thumb" style="background:hsl(${hue(m.name)} 45% 62%)">${esc(initial(m.name))}<small>${m.ig ? "看 IG 作品" : "暫無作品"}</small></div>
+    <div class="body">
+      <div class="name">${esc(m.name)}<span class="kind">${m.kind === "studio" ? "工作室" : "實體店"}</span></div>
+      ${m.reg && m.reg !== m.name ? `<div class="reg">登記名稱：${esc(m.reg)}</div>` : ""}
+      <div class="meta"><span class="road">${esc(m.road || m.address || "地址未提供")}</span><span class="dist">${fmtDist(m.dist)}</span></div>
+      <div class="chips">${chips.join("")}</div>
+      <div class="actions">
+        ${m.ig ? `<a class="primary" href="https://www.instagram.com/${esc(m.ig)}/" target="_blank" rel="noopener">看作品</a>` : ""}
+        ${line ? `<a href="${esc(line)}" target="_blank" rel="noopener">LINE</a>` : ""}
+        <a href="${gmaps}" target="_blank" rel="noopener">地圖・評論</a>
+        ${m.phone ? `<span class="phone">${esc(m.phone)}</span>` : ""}
+      </div>
+    </div>
+  </article>`;
+}
+
+function renderList(rows) {
+  const list = $("#list");
+  if (!rows.length) { list.innerHTML = `<div class="empty">沒有符合條件的店家，換個關鍵字或篩選試試</div>`; return; }
+  const part = rows.slice(0, state.shown);
+  list.innerHTML = part.map(card).join("") +
+    (rows.length > part.length ? `<button class="more" id="more" type="button">再顯示 ${Math.min(PAGE, rows.length - part.length)} 家（共 ${rows.length} 家）</button>` : "");
+  const more = $("#more");
+  if (more) more.onclick = () => { state.shown += PAGE; render(); };
+}
+
+function renderMap(rows) {
+  const pts = rows.filter(m => m.lat != null);
+  const all = pts.map(m => [m.lat, m.lng]).concat(LANDMARKS.map(l => [l.lat, l.lng]));
+  if (!all.length) { $("#map").innerHTML = `<div class="empty">沒有可顯示的位置</div>`; return; }
+  const lats = all.map(p => p[0]), lngs = all.map(p => p[1]);
+  const pad = 0.004;
+  const minLat = Math.min(...lats) - pad, maxLat = Math.max(...lats) + pad;
+  const minLng = Math.min(...lngs) - pad, maxLng = Math.max(...lngs) + pad;
+  const kx = Math.cos((minLat + maxLat) / 2 * Math.PI / 180);
+  const W = 600, H = Math.max(320, Math.min(900, W * (maxLat - minLat) / ((maxLng - minLng) * kx)));
+  const x = lng => (lng - minLng) / (maxLng - minLng) * W;
+  const y = lat => H - (lat - minLat) / (maxLat - minLat) * H;
+  let g = "";
+  for (let i = 1; i < 6; i++) g += `<line class="grid" x1="${W * i / 6}" y1="0" x2="${W * i / 6}" y2="${H}"/><line class="grid" x1="0" y1="${H * i / 6}" x2="${W}" y2="${H * i / 6}"/>`;
+  const lm = LANDMARKS.map(l => `<rect class="lm" x="${x(l.lng) - 5}" y="${y(l.lat) - 5}" width="10" height="10" rx="2"/><text class="lmtext" x="${x(l.lng) + 8}" y="${y(l.lat) + 4}">${esc(l.name)}</text>`).join("");
+  const pins = pts.map(m => `<circle class="pin${m.prec === "address" ? "" : " approx"}" tabindex="0" data-id="${m.id}" cx="${x(m.lng).toFixed(1)}" cy="${y(m.lat).toFixed(1)}" r="6"><title>${esc(m.name)}</title></circle>`).join("");
+  $("#map").innerHTML = `<svg viewBox="0 0 ${W} ${H.toFixed(0)}" role="img" aria-label="店家相對位置圖">${g}${lm}${pins}</svg>`;
+  $("#map").querySelectorAll(".pin").forEach(p => {
+    const go = () => {
+      const m = DATA.find(d => d.id === p.dataset.id);
+      const idx = rows.indexOf(m);
+      if (idx >= state.shown) state.shown = idx + 1;
+      setView("list");
+      const el = document.getElementById("m-" + m.id);
+      if (el) { el.scrollIntoView({ block: "center" }); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
+    };
+    p.addEventListener("click", go);
+    p.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+  });
+}
+
+function render() {
+  const rows = filtered();
+  const counts = Object.fromEntries(TABS.map(t => [t.id, DATA.filter(t.test).length]));
+  $("#tabs").innerHTML = TABS.map(t => `<button type="button" data-tab="${t.id}" aria-pressed="${t.id === state.tab}">${t.label}<span class="count">${counts[t.id]}</span></button>`).join("");
+  $("#summary").textContent = `${rows.length} 家店・距離以「${LANDMARKS[state.from].name}」計算`;
+  if (state.view === "list") renderList(rows); else renderMap(rows);
+}
+
+function setView(v) {
+  state.view = v;
+  $("#listview").hidden = v !== "list";
+  $("#mapview").hidden = v !== "map";
+  $("#viewlabel").textContent = v === "list" ? "地圖" : "列表";
+  $("#viewicon").innerHTML = v === "list"
+    ? '<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>'
+    : '<path d="M4 6h16M4 12h16M4 18h16"/>';
+  render();
+}
+
+LANDMARKS.forEach((l, i) => $("#from").add(new Option(l.name, i)));
+$("#updated").textContent = "更新於 " + META.updated;
+$("#q").addEventListener("input", e => { state.q = e.target.value; state.shown = PAGE; render(); });
+$("#tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { state.tab = b.dataset.tab; state.shown = PAGE; render(); } });
+$("#from").addEventListener("change", e => { state.from = +e.target.value; if (state.sort === "rec") { state.sort = "dist"; $("#sort").value = "dist"; } render(); });
+$("#kind").addEventListener("change", e => { state.kind = e.target.value; state.shown = PAGE; render(); });
+$("#sort").addEventListener("change", e => { state.sort = e.target.value; render(); });
+$("#viewbtn").addEventListener("click", () => setView(state.view === "list" ? "map" : "list"));
+render();
+</script>

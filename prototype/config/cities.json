@@ -1,0 +1,21 @@
+{
+  "竹北市": {
+    "slug": "zhubei",
+    "county": "新竹縣",
+    "landmarks": [
+      { "name": "竹北市中心", "query": "新竹縣政府" },
+      { "name": "高鐵新竹站", "query": "高鐵新竹站" },
+      { "name": "竹北火車站", "query": "竹北車站" },
+      { "name": "遠百竹北", "query": "遠東百貨竹北店" }
+    ]
+  },
+  "大安區": {
+    "slug": "taipei-daan",
+    "county": "臺北市",
+    "landmarks": [
+      { "name": "大安森林公園", "query": "大安森林公園" },
+      { "name": "捷運忠孝復興", "query": "忠孝復興站" },
+      { "name": "捷運公館", "query": "公館站" }
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+.env
+prototype/data/
+prototype/cache/mof/
+prototype/build.log
+__pycache__/

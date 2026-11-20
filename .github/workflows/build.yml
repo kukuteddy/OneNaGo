@@ -1,0 +1,71 @@
+name: 每週更新美甲地圖
+
+on:
+  schedule:
+    - cron: "0 19 * * 0"   # 每週一 03:00（台灣時間 = UTC+8）
+  workflow_dispatch:        # 也可在 GitHub 網頁 Actions 分頁手動按「Run workflow」
+  push:
+    branches: [main]
+    paths: ["prototype/**", ".github/workflows/**"]
+
+permissions:
+  contents: write   # 回存定位快取
+  pages: write
+  id-token: write
+
+concurrency:
+  group: build-and-deploy
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    defaults:
+      run:
+        working-directory: prototype
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 還原政府原始檔快取（300MB，不進版控）
+        uses: actions/cache@v4
+        with:
+          path: prototype/cache/mof
+          key: mof-${{ github.run_id }}
+          restore-keys: mof-
+
+      - name: 建置所有城市
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}   # 選填：沒設定就跳過 IG
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+        run: python pipeline.py build --all
+
+      - name: 回存定位快取（下次只查新地址）
+        run: |
+          if [ -n "$(git status --porcelain -- cache/geocode_cache.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add cache/geocode_cache.json
+            git commit -m "chore: update geocode cache [skip ci]"
+            git push
+          fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: prototype/data/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

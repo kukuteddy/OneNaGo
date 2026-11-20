@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="玩哪走 OneNaGo">
+  <rect width="512" height="512" rx="112" fill="#FF6827"/>
+  <g transform="translate(252 226) scale(1.32)">
+    <g transform="rotate(16)">
+      <path d="M-101 36 A106 106 0 1 1 99 52 L24 170 Q6 196 -10 176 Z" fill="#FEFDF9"/>
+      <circle r="72" fill="#FF6827"/>
+    </g>
+    <circle cx="-28" cy="-24" r="12" fill="#FEFDF9"/>
+    <circle cx="30" cy="-12" r="12" fill="#FEFDF9"/>
+    <path d="M-44 10 Q-32 56 4 58 Q30 58 46 38" fill="none" stroke="#FEFDF9" stroke-width="14" stroke-linecap="round"/>
+  </g>
+</svg>

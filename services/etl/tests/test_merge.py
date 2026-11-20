@@ -38,6 +38,20 @@ def test_gov_then_web_same_address_merges_and_keeps_sign_name() -> None:
     assert m.established == date(2009, 9, 1)
 
 
+def test_manual_kind_overrides_guess_from_registered_name() -> None:
+    idx = MerchantIndex()
+    m, _ = idx.add(
+        gov("沙菈美甲沙龍工作室", "新竹縣竹北市勝利五路178號", "12345678", kind="studio"),
+        vertical="nail",
+        city="zhubei",
+    )
+    idx.add(web("沙菈美學SARA's", "新竹縣竹北市勝利五路178號", kind="shop"), vertical="nail", city="zhubei")
+    assert m.kind == "shop"
+    # 補充資料沒寫類型 → 保留原本的
+    idx.add(web("沙菈美學SARA's", "新竹縣竹北市勝利五路178號"), vertical="nail", city="zhubei")
+    assert m.kind == "shop"
+
+
 def test_gov_name_does_not_override_web_name() -> None:
     idx = MerchantIndex()
     idx.add(web("NICA Beauty 尼卡美學", "新竹縣竹北市十興路一段331號"), vertical="nail", city="zhubei")

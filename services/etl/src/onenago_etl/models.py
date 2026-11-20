@@ -19,7 +19,7 @@ class Record:
     source: str  # gov_open_data / manual
     tax_id: str = ""
     registered_name: str = ""
-    kind: str = "shop"
+    kind: str = ""  # shop / studio / mobile；空字串 = 來源沒說
     phone: str = ""
     ig: str = ""
     line: str = ""

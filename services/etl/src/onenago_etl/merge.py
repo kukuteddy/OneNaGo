@@ -45,7 +45,7 @@ class MerchantIndex:
                 city_slug=city,
                 name=rec.name,
                 address=rec.address,
-                kind=rec.kind,
+                kind=rec.kind or "shop",
                 registered_name=rec.registered_name,
                 tax_id=rec.tax_id,
                 phone=rec.phone,
@@ -93,7 +93,7 @@ class MerchantIndex:
             m.ig, m.ig_source = rec.ig, "manual"
         if rec.established and not m.established:
             m.established = rec.established
-        if not is_gov and rec.kind != "shop":
-            m.kind = rec.kind
+        if rec.kind and (not is_gov or not m.kind):
+            m.kind = rec.kind  # 人工 / 網路資料明確寫的類型，比從登記名稱猜的準
         m.sources.add(rec.source)
         m.hints.update(rec.hints)

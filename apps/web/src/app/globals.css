@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+/* 玩哪走 OneNaGo 設計 token（品牌規範：brand/README.md） */
+:root {
+  --bg: #f4f2f1;
+  --surface: #ffffff;
+  --paper: #fefdf9;
+  --ink: #222222;
+  --ink-2: #6f6866;
+  --ink-3: #a59d9a;
+  --line: #ece8e6;
+  --brand: #ff6827;
+  --brand-soft: #fff0e8;
+  --gold: #c98a1b;
+  --gold-soft: #fdf4e3;
+  --ok: #1f9d6b;
+  --ok-soft: #e7f6ef;
+  --warn: #b7791f;
+  --danger: #d93636;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121010;
+    --surface: #1d1a19;
+    --paper: #1d1a19;
+    --ink: #f1edeb;
+    --ink-2: #b3aaa6;
+    --ink-3: #7d7471;
+    --line: #2d2928;
+    --brand: #ff7a45;
+    --brand-soft: #3a2116;
+    --gold: #e7ad45;
+    --gold-soft: #33280f;
+    --ok: #4cc795;
+    --ok-soft: #12291f;
+    --warn: #e3a64c;
+    --danger: #ff6b6b;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --font-sans: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+}
+
+html,
+body {
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.gutter {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+@keyframes flash {
+  from {
+    background: var(--brand-soft);
+  }
+  to {
+    background: var(--surface);
+  }
+}
+.flash {
+  animation: flash 1.2s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .flash {
+    animation: none;
+  }
+}
+
+/* Leaflet 預設字型跟網站一致 */
+.leaflet-container {
+  font: inherit;
+}
+.lm-label {
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+}

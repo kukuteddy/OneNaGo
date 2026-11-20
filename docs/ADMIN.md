@@ -26,6 +26,23 @@
 
 被退回的資料**不會**計入「兩人以上回報」的計算，所以如果有人亂填 IG，把它改成 `rejected` 就好。
 
+## 設定 GitHub Secrets（每週自動更新需要）
+
+每週更新會把資料寫進 Supabase，所以 GitHub 需要資料庫連線字串。這個字串含有密碼，**只放在 GitHub Secrets**，不會出現在程式碼裡。
+
+1. 打開本機的 `services/etl/.env`，複製 `SUPABASE_DB_URL=` **後面**的整串文字。
+2. 打開 https://github.com/kukuteddy/OneNaGo/settings/secrets/actions
+3. 按 **New repository secret**：
+   - Name：`SUPABASE_DB_URL`
+   - Secret：貼上剛才複製的文字
+4. 按 **Add secret**。
+
+選填：申請 [Tavily](https://tavily.com) 免費帳號後，用同樣方式新增 `TAVILY_API_KEY`，每週更新就會自動幫店家找 IG。
+
+設好之後，可以到 **Actions → 每週更新資料 → Run workflow** 手動跑一次確認。
+
 ## 資料庫結構的變更
 
-資料表定義在 `supabase/migrations/`，變更時由 Claude 透過資料庫連線套用。資料庫密碼存在本機的 `supabase.txt`，這個檔案已經列入 `.gitignore`，**不會上傳到 GitHub**。
+資料表定義在 `supabase/migrations/`，依檔名順序套用，已套用的會記錄在 `schema_migrations` 資料表。新增檔案後執行 `onenago-etl migrate`（每週更新也會自動執行）。
+
+資料庫密碼存在本機的 `supabase.txt` 和 `services/etl/.env`，這兩個檔案都已經列入 `.gitignore`，**不會上傳到 GitHub**。

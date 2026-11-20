@@ -33,7 +33,7 @@ def load(seeds_dir: Path, vertical: str, city: str) -> list[Record]:
                         name=name,
                         address=addr.normalize(row.get("address") or ""),
                         source="manual",
-                        kind=kind if kind in ("shop", "studio", "mobile") else "shop",
+                        kind=kind if kind in ("shop", "studio", "mobile") else "",
                         phone=(row.get("phone") or "").strip(),
                         ig=ig,
                         line=(row.get("line") or "").strip(),

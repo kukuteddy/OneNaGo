@@ -33,6 +33,7 @@ interface Row {
   role?: string | null;
   contact?: string;
   proof?: string | null;
+  logo_path?: string | null;
 }
 
 const TABS: { id: Table; label: string }[] = [
@@ -166,6 +167,17 @@ function Item({
           <dd className="m-0 select-all [overflow-wrap:anywhere]">{row.contact}</dd>
           <dt className="text-ink-3">證明</dt>
           <dd className="m-0 [overflow-wrap:anywhere]">{row.proof || "—"}</dd>
+          <dt className="text-ink-3">Logo</dt>
+          <dd className="m-0">
+            {row.logo_path ? (
+              <a href={photoUrl(row.logo_path)} target="_blank" rel="noopener">
+                {/* eslint-disable-next-line @next/next/no-img-element -- 待審核 Logo */}
+                <img src={photoUrl(row.logo_path)} alt="店家上傳的 Logo" className="h-24 w-24 rounded-lg object-cover" />
+              </a>
+            ) : (
+              "—"
+            )}
+          </dd>
         </dl>
       )}
 

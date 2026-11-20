@@ -5,6 +5,7 @@ import { ShopDetail } from "@/components/ShopDetail";
 import { getCities, getData, getShop, getVerticals } from "@/lib/data";
 import { SITE_URL } from "@/lib/site";
 import { igUrl, kindLabel } from "@/lib/shop";
+import { photoUrl } from "@/lib/supabase";
 
 type Params = { id: string };
 
@@ -45,6 +46,7 @@ export default async function ShopPage({ params }: { params: Promise<Params> }) 
     telephone: shop.phone ?? undefined,
     sameAs: shop.ig ? [igUrl(shop.ig)] : undefined,
     foundingDate: shop.established ?? undefined,
+    logo: shop.logoPath ? photoUrl(shop.logoPath) : undefined,
   };
 
   return (

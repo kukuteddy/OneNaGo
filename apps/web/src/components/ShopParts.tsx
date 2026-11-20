@@ -15,22 +15,28 @@ function initial(name: string): string {
 export function ShopThumb({ shop, community, size = 88 }: { shop: Shop; community?: Community; size?: number }) {
   const v = withCommunity(shop, community);
   const photo = v.photos[0];
+  // 大頭貼優先順序：店家 Logo → 客人作品照 → 文字頭像
+  const image = shop.logoPath
+    ? { src: photoUrl(shop.logoPath), alt: `${shop.name} 的 Logo` }
+    : photo
+      ? { src: photoUrl(photo.path), alt: `${shop.name} 的作品` }
+      : null;
   return (
     <div
       className="relative grid shrink-0 place-items-center overflow-hidden rounded-lg font-bold text-white"
       style={{ width: size, height: size, fontSize: size / 3, background: `hsl(${hue(shop.name)} 45% 62%)` }}
     >
       {initial(shop.name)}
-      {photo && (
+      {image && (
         // eslint-disable-next-line @next/next/no-img-element -- 使用者照片放在 Supabase Storage，靜態輸出不經 next/image
         <img
-          src={photoUrl(photo.path)}
-          alt={`${shop.name} 的作品`}
+          src={image.src}
+          alt={image.alt}
           loading="lazy"
           className="absolute inset-0 h-full w-full object-cover"
         />
       )}
-      {size >= 72 && (
+      {size >= 72 && !(shop.logoPath && !photo && !v.ig) && (
         <small className="absolute inset-x-0 bottom-0 bg-black/30 py-0.5 text-center text-[10px] font-normal">
           {photo ? `作品 ${v.photos.length} 張` : v.ig ? "看 IG 作品" : "暫無作品"}
         </small>

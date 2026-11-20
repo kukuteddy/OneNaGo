@@ -14,6 +14,9 @@ const COLUMNS: Record<string, string[]> = {
   claims: ["merchant_id", "merchant_name", "owner_name", "role", "contact", "proof", "client_id"],
 };
 
+// 可附一張圖片的資料表 → 欄位（回報的作品照、認領的店家 Logo）
+const PHOTO_COLUMN: Record<string, string> = { reports: "photo_path", claims: "logo_path" };
+
 const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
   .split(",")
   .map((s) => s.trim())
@@ -68,11 +71,12 @@ Deno.serve(async (req) => {
   });
 
   let upload: { path: string; token: string } | undefined;
-  if (table === "reports" && photo) {
+  const photoColumn = PHOTO_COLUMN[table!];
+  if (photoColumn && photo) {
     const name = `${crypto.randomUUID()}.jpg`;
     const { data, error } = await sb.storage.from("ugc-photos").createSignedUploadUrl(`u/${name}`);
     if (error || !data) return json({ error: "照片上傳準備失敗" }, 500, headers);
-    clean.photo_path = name;
+    clean[photoColumn] = name;
     upload = { path: data.path, token: data.token };
   }
 

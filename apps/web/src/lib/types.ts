@@ -43,6 +43,7 @@ export interface Shop {
   sources: string[];
   hints: string[];
   claimed: boolean;
+  logoPath: string | null; // 店家認領時上傳的 Logo（Storage 路徑）
 }
 
 /** 使用者補充（瀏覽器端即時讀取後合併）。 */

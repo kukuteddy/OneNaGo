@@ -41,12 +41,13 @@ interface MerchantRow {
   sources: string[];
   hints: string[];
   claimed: boolean;
+  logo_path: string | null;
   merchant_verticals: { vertical_slug: string }[];
 }
 
 const MERCHANT_COLUMNS =
   "id,short_id,city_slug,name,registered_name,kind,address,road,lat,lng,geo_precision,phone,ig," +
-  "ig_source,line,established,sources,hints,claimed,merchant_verticals(vertical_slug)";
+  "ig_source,line,established,sources,hints,claimed,logo_path,merchant_verticals(vertical_slug)";
 
 let cache: Promise<{ verticals: Vertical[]; cities: City[]; shops: Shop[] }> | null = null;
 
@@ -83,6 +84,7 @@ async function load() {
         sources: m.sources,
         hints: m.hints,
         claimed: m.claimed,
+        logoPath: m.logo_path,
       }),
     ),
   };

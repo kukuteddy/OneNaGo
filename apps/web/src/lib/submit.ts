@@ -27,10 +27,13 @@ export function clientId(): string | null {
   }
 }
 
-/** 縮到最長邊 1600px 的 JPEG；重新繪製也會去掉 EXIF（含拍攝地點）。 */
-export async function shrinkPhoto(file: File): Promise<Blob> {
+/** 圖片欄位：回報的作品照片、認領的店家 Logo。 */
+export const PHOTO_COLUMN: Partial<Record<SubmitTable, string>> = { reports: "photo_path", claims: "logo_path" };
+
+/** 縮到最長邊 maxSide 的 JPEG；重新繪製也會去掉 EXIF（含拍攝地點）。 */
+export async function shrinkPhoto(file: File, maxSide = 1600): Promise<Blob> {
   const img = await createImageBitmap(file);
-  const s = Math.min(1, 1600 / Math.max(img.width, img.height));
+  const s = Math.min(1, maxSide / Math.max(img.width, img.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(img.width * s);
   canvas.height = Math.round(img.height * s);
@@ -67,13 +70,14 @@ export async function submit(
     return;
   }
 
-  if (opts.photo) {
+  const photoColumn = PHOTO_COLUMN[table];
+  if (opts.photo && photoColumn) {
     const name = `${crypto.randomUUID()}.jpg`;
     const { error } = await supabase()
       .storage.from("ugc-photos")
       .upload(`u/${name}`, opts.photo, { contentType: "image/jpeg" });
     if (error) throw new SubmitError("照片上傳失敗");
-    payload.photo_path = name;
+    payload[photoColumn] = name;
   }
   const { error } = await supabase().from(table).insert(payload);
   if (error) throw new SubmitError("送出失敗");

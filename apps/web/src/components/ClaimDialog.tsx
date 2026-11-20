@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SubmitError, submit } from "@/lib/submit";
+import { SubmitError, shrinkPhoto, submit } from "@/lib/submit";
 import type { Shop } from "@/lib/types";
 import { Field, FormDialog, inputClass, noteClass } from "./FormDialog";
 
@@ -16,6 +16,8 @@ export function ClaimDialog({ shop, onClose }: { shop: Shop; onClose: () => void
   const [role, setRole] = useState<(typeof ROLES)[number]["value"]>("owner");
   const [contact, setContact] = useState("");
   const [proof, setProof] = useState("");
+  const [logo, setLogo] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
 
   async function onSubmit(token: string | undefined) {
     if (!name.trim()) throw new SubmitError("請填你的稱呼");
@@ -30,7 +32,7 @@ export function ClaimDialog({ shop, onClose }: { shop: Shop; onClose: () => void
         contact: contact.trim(),
         proof: proof.trim() || null,
       },
-      { turnstileToken: token },
+      { photo: logo ? await shrinkPhoto(logo, 512) : undefined, turnstileToken: token },
     );
   }
 
@@ -82,7 +84,23 @@ export function ClaimDialog({ shop, onClose }: { shop: Shop; onClose: () => void
       <Field id="cl-proof" label="證明（選填：店家 IG 帳號、統一編號等，方便我們確認）">
         <input id="cl-proof" className={inputClass} maxLength={500} value={proof} onChange={(e) => setProof(e.target.value)} />
       </Field>
-      <p className={noteClass}>聯絡方式只有玩哪走管理者看得到，不會公開。</p>
+      <Field id="cl-logo" label="店家 Logo 或大頭貼（選填，通過後顯示在店家頁與列表）">
+        <input
+          id="cl-logo"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null;
+            setLogo(f);
+            setPreview(f ? URL.createObjectURL(f) : null);
+          }}
+        />
+        {preview && (
+          // eslint-disable-next-line @next/next/no-img-element -- 本機預覽（blob URL）
+          <img src={preview} alt="" className="h-20 w-20 rounded-lg object-cover" />
+        )}
+      </Field>
+      <p className={noteClass}>上傳的圖片需是店家自己的 Logo 或照片。聯絡方式只有玩哪走管理者看得到，不會公開。</p>
     </FormDialog>
   );
 }

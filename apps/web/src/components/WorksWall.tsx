@@ -11,6 +11,7 @@ interface Work {
   short_id: string;
   name: string;
   road: string | null;
+  nickname: string | null;
 }
 
 const PAGE = 60;
@@ -24,7 +25,7 @@ export function WorksWall({ citySlug, shopIds }: { citySlug: string; shopIds: st
     const allowed = new Set(shopIds);
     supabase()
       .from("photo_wall")
-      .select("photo_path,price_twd,created_at,short_id,name,road")
+      .select("photo_path,price_twd,created_at,short_id,name,road,nickname")
       .eq("city_slug", citySlug)
       .order("created_at", { ascending: false })
       .limit(500)
@@ -41,7 +42,9 @@ export function WorksWall({ citySlug, shopIds }: { citySlug: string; shopIds: st
     return (
       <div className="gutter py-10 text-center text-ink-2">
         <p className="m-0">還沒有客人分享作品。</p>
-        <p className="m-0 mt-1 text-sm">到任何一家店的頁面按「補充資訊 → 上傳作品照片」，就會出現在這裡。</p>
+        <p className="m-0 mt-1 text-sm">
+          到任何一家店的頁面按「補充資訊 → 上傳作品照片」，審核通過就會出現在這裡，並標示你的署名。
+        </p>
       </div>
     );
 
@@ -59,7 +62,7 @@ export function WorksWall({ citySlug, shopIds }: { citySlug: string; shopIds: st
             <div className="grid gap-0.5 p-2.5">
               <b className="truncate text-sm">{w.name}</b>
               <span className="flex justify-between gap-2 text-xs text-ink-2">
-                <span className="truncate">{w.road}</span>
+                <span className="truncate">{w.nickname ? `📷 ${w.nickname}` : w.road}</span>
                 {w.price_twd && <span className="shrink-0 text-brand">NT${w.price_twd.toLocaleString()}</span>}
               </span>
             </div>

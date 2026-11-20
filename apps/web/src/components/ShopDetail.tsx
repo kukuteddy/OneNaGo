@@ -73,7 +73,14 @@ export function ShopDetail({ shop, city, vertical }: { shop: Shop; city: City; v
   return (
     <main className="mx-auto max-w-3xl pb-10">
       <section className="gutter grid grid-cols-[96px_minmax(0,1fr)] gap-4 py-4">
-        <ShopThumb shop={shop} community={c} size={96} />
+        <div className="grid content-start justify-items-center gap-1.5">
+          <ShopThumb shop={shop} community={c} size={96} />
+          {!shop.logoPath && !shop.claimed && (
+            <button type="button" onClick={() => open("claim")} className="cursor-pointer text-[11px] text-brand">
+              店家？上傳 Logo
+            </button>
+          )}
+        </div>
         <div className="grid min-w-0 content-start gap-2">
           <h1 className="m-0 text-xl font-bold leading-snug [overflow-wrap:anywhere]">
             {shop.name}
@@ -108,9 +115,13 @@ export function ShopDetail({ shop, city, vertical }: { shop: Shop; city: City; v
                   loading="lazy"
                   className="aspect-square w-full rounded-lg object-cover"
                 />
-                {p.price && (
-                  <figcaption className="absolute bottom-1 left-1 rounded bg-black/55 px-1.5 text-[11px] text-white">
-                    NT${p.price.toLocaleString()}
+                {p.first && (
+                  <span className="absolute left-1 top-1 rounded bg-brand px-1.5 text-[10px] text-white">首位分享</span>
+                )}
+                {(p.price || p.by) && (
+                  <figcaption className="absolute inset-x-1 bottom-1 flex justify-between gap-1 text-[11px] text-white">
+                    {p.by ? <span className="truncate rounded bg-black/55 px-1.5">📷 {p.by}</span> : <span />}
+                    {p.price && <span className="shrink-0 rounded bg-black/55 px-1.5">NT${p.price.toLocaleString()}</span>}
                   </figcaption>
                 )}
               </figure>
@@ -118,7 +129,11 @@ export function ShopDetail({ shop, city, vertical }: { shop: Shop; city: City; v
           </div>
         ) : (
           <div className="grid justify-items-start gap-2 rounded-xl border border-dashed border-line bg-surface p-4 text-sm text-ink-2">
-            還沒有人分享這家店的作品。
+            <span>
+              <b className="text-ink">成為第一位分享這家店作品的人！</b>
+              <br />
+              你的照片會成為店家的大頭貼，並標示「首位分享」和你的署名。
+            </span>
             <button
               type="button"
               onClick={() => open("contribute")}

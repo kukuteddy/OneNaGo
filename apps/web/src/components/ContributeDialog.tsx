@@ -35,6 +35,7 @@ export function ContributeDialog({ target, onClose }: { target: ContributeTarget
   const [price, setPrice] = useState("");
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [nickname, setNickname] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
   const on = (...ks: Kind[]) => ks.includes(kind);
 
@@ -67,6 +68,7 @@ export function ContributeDialog({ target, onClose }: { target: ContributeTarget
       row.value = text.trim() || null;
     }
     if (kind === "photo" && !file) throw new SubmitError("請先選一張照片");
+    if (kind === "photo" && nickname.trim()) row.nickname = nickname.trim().slice(0, 30);
     await submit("reports", row, { photo: file ? await shrinkPhoto(file) : undefined, turnstileToken: token });
   }
 
@@ -149,6 +151,18 @@ export function ContributeDialog({ target, onClose }: { target: ContributeTarget
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             placeholder="例：1200"
+          />
+        </Field>
+      )}
+      {on("photo") && (
+        <Field id="cf-nick" label="署名（選填，會顯示在作品旁，例如 IG 帳號或暱稱）">
+          <input
+            id="cf-nick"
+            className={inputClass}
+            maxLength={30}
+            autoComplete="nickname"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
           />
         </Field>
       )}

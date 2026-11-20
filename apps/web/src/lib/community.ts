@@ -19,6 +19,7 @@ interface PhotoRow {
   merchant_id: string;
   photo_path: string;
   price_twd: number | null;
+  nickname: string | null;
 }
 
 interface StatRow {
@@ -45,7 +46,13 @@ export function buildCommunity(summary: SummaryRow[], photos: PhotoRow[], stats:
       c.warning ??= s.kind === "closed" ? "多人回報已歇業" : "多人回報已搬家";
     }
   }
-  for (const p of photos) get(p.merchant_id).photos.push({ path: p.photo_path, price: p.price_twd });
+  // photos 是新到舊，每家店最後一張就是第一位分享的
+  for (const p of photos)
+    get(p.merchant_id).photos.push({ path: p.photo_path, price: p.price_twd, by: p.nickname, first: false });
+  for (const c of map.values()) {
+    const oldest = c.photos.at(-1);
+    if (oldest) oldest.first = true;
+  }
   for (const r of stats) get(r.merchant_id).rating = { avg: r.rating, count: r.reviews };
   return map;
 }
@@ -60,7 +67,7 @@ export function useCommunity(merchantIds?: string[]): CommunityMap {
     const summary = supabase().from("report_summary").select("merchant_id,kind,value,reporters,price_median");
     const photos = supabase()
       .from("approved_photos")
-      .select("merchant_id,photo_path,price_twd")
+      .select("merchant_id,photo_path,price_twd,nickname")
       .order("created_at", { ascending: false });
     const stats = supabase().from("review_stats").select("merchant_id,reviews,rating");
     Promise.all([

@@ -52,6 +52,6 @@ export interface Community {
   line?: string;
   price?: number;
   warning?: string;
-  photos: { path: string; price: number | null }[];
+  photos: { path: string; price: number | null; by: string | null; first: boolean }[]; // 新到舊；first = 這家店第一張
   rating?: { avg: number; count: number };
 }

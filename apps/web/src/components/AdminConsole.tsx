@@ -146,6 +146,9 @@ function Item({
           )}
           {row.value && <p className="m-0 whitespace-pre-line [overflow-wrap:anywhere]">{row.value}</p>}
           {row.price_twd && <p className="m-0 text-brand">NT${row.price_twd.toLocaleString()}</p>}
+          {table === "reports" && row.kind === "photo" && (
+            <p className="m-0 text-xs text-ink-3">署名：{row.nickname || "（未署名）"}</p>
+          )}
         </div>
       )}
       {table === "reviews" && (

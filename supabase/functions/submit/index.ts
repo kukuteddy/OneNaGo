@@ -9,7 +9,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 
 const COLUMNS: Record<string, string[]> = {
-  reports: ["merchant_id", "merchant_name", "kind", "value", "price_twd", "client_id"],
+  reports: ["merchant_id", "merchant_name", "kind", "value", "price_twd", "nickname", "client_id"],
   reviews: ["merchant_id", "rating", "body", "nickname", "visited_on", "client_id"],
   claims: ["merchant_id", "merchant_name", "owner_name", "role", "contact", "proof", "client_id"],
 };

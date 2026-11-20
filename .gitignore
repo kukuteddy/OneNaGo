@@ -25,5 +25,6 @@ prototype/build.log
 
 # 機密：資料庫密碼等，絕不上傳
 supabase.txt
+cloudflare.txt
 *.secret
 *.secret.txt

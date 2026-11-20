@@ -37,6 +37,15 @@
    - Secret：貼上剛才複製的文字
 4. 按 **Add secret**。
 
+### Cloudflare Pages（網站主機）
+
+| Secret | 哪裡拿 |
+|---|---|
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 後台 → Workers & Pages，右側的 Account ID |
+| `CLOUDFLARE_API_TOKEN` | 右上頭像 → My Profile → API Tokens → Create Custom Token，權限：`Account / Cloudflare Pages / Edit`、`Account / Access: Apps and Policies / Edit` |
+
+兩個都設定好之後，每次部署會同時更新 https://onenago.pages.dev。沒設定時會自動略過 Cloudflare，只部署到 GitHub Pages。
+
 選填：申請 [Tavily](https://tavily.com) 免費帳號後，用同樣方式新增 `TAVILY_API_KEY`，每週更新就會自動幫店家找 IG。
 
 設好之後，可以到 **Actions → 每週更新資料 → Run workflow** 手動跑一次確認。

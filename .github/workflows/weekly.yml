@@ -10,6 +10,7 @@ permissions:
   contents: write # 回存快取
   pages: write
   id-token: write
+  deployments: write
 
 concurrency:
   group: weekly
@@ -64,3 +65,4 @@ jobs:
   deploy:
     needs: etl
     uses: ./.github/workflows/deploy.yml
+    secrets: inherit

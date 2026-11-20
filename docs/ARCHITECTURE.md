@@ -91,7 +91,7 @@ OneNaGo/
 |---|---|---|
 | `ci.yml` | 每次 push / PR | ETL：ruff、mypy、pytest；網站：eslint、型別檢查、建置 |
 | `weekly.yml` | 每週一 03:00（台灣時間）、手動 | 套用 migration → 執行 ETL → 寫入 Supabase → 呼叫部署 |
-| `deploy.yml` | 網站程式 / 設定 / 品牌變更、每週更新完成 | 建置 Next.js 靜態網站 → 部署到 GitHub Pages |
+| `deploy.yml` | 網站程式 / 設定 / 品牌變更、每週更新完成 | 建置 Next.js 靜態網站 → 部署到 Cloudflare Pages（主要）與 GitHub Pages（過渡） |
 
 ## 機密資訊
 
@@ -106,5 +106,6 @@ OneNaGo/
 - [x] 資料庫為唯一真相、ETL 模組化與測試、Next.js 網站、店家詳細頁、CI 檢查（v0.2）
 - [ ] 投稿加 Cloudflare Turnstile（防灌水）
 - [ ] 管理審核頁（Supabase Auth 登入）
-- [ ] 改部署到 Cloudflare Pages，前期用 Cloudflare Access 限定 Email 才能看
+- [x] 部署到 Cloudflare Pages（https://onenago.pages.dev）
+- [ ] 前期用 Cloudflare Access 限定 Email 才能看；GitHub 專案改私人、停用 GitHub Pages
 - [ ] 店家認領、作品牆、評論

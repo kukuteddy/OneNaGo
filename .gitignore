@@ -3,3 +3,8 @@ prototype/data/
 prototype/cache/mof/
 prototype/build.log
 __pycache__/
+
+# 機密：資料庫密碼等，絕不上傳
+supabase.txt
+*.secret
+*.secret.txt

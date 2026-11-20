@@ -856,7 +856,9 @@ def cmd_site(args) -> int:
         })
     lms = city_landmarks(city) or [{"name": city, "lat": 0, "lng": 0}]
     meta = {"city": city, "vertical": v, "updated": date.today().isoformat(), "landmarks": lms,
-            "reportUrl": site_config().get("report_form_prefill") or ""}
+            "reportUrl": site_config().get("report_form_prefill") or "",
+            "sb": {"url": site_config().get("supabase_url") or "",
+                   "key": site_config().get("supabase_publishable_key") or ""}}
 
     def js(o):
         return json.dumps(o, ensure_ascii=False).replace("</", "<\\/")

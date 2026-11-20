@@ -1,79 +1,109 @@
-# 玩哪走 OneNaGo：架構與資料流程
+# 玩哪走 OneNaGo：系統架構
 
-目標：**不靠人工、不花錢**，自動產生並更新台灣各城市、各行業的店家名單（台灣在地生活指南）。美甲先上線，之後橫向擴展到其他行業。品牌規範見 [brand/README.md](../brand/README.md)。
+台灣在地生活指南。依「行業 × 城市」比較店家，資料自動彙整，使用者可以補充。
+品牌規範見 [brand/README.md](../brand/README.md)，審核流程見 [ADMIN.md](ADMIN.md)。
 
-## 一、資料流程（現在：prototype/pipeline.py）
+## 原則
+
+1. **資料庫是唯一真相**：所有店家資料都在 Supabase（PostgreSQL）。網站、App、管理頁都從這裡讀。
+2. **不靠人工、不花錢**：資料來源是政府開放資料加上免費服務，每週自動更新。
+3. **使用者可以補充**：任何人都能送出資料，但只能新增、不能讀別人送的原始資料；網站只顯示彙整後或審核通過的結果。
+4. **每次修改都有自動檢查**：lint、型別檢查、測試都通過才能上線。
+
+## 系統圖
 
 ```
-                 ┌───────────── 來源（全部免費） ─────────────┐
-                 │ ① 財政部稅籍登記（每日更新，主要來源）      │
-                 │ ② seeds/<城市>_*.csv（網路/人工補充，可選） │
-                 │ ③ IG Business Discovery（有權杖才跑，可選）│
-                 └───────────────┬────────────────────────────┘
-                                 ▼
- python pipeline.py build --city 竹北市
-   1 fetch     下載 BGMOPEN1.zip（If-Modified-Since，沒更新就用快取）
-   2 extract   篩出 行業代號 962211「美甲美睫服務」或店名含 美甲/指甲/nail
-   3 merge     統一編號 → 門牌比對（國字/數字、里鄰、樓層正規化）→ 同店合併
-               同門牌但統編不同 = 不同店（同棟多間工作室）
-   4 geocode   OSM Nominatim 結構化查詢，逐級降級 門牌 → 巷弄 → 道路 → 行政區
-               結果寫入 cache/geocode_cache.json，下次只查新地址
-   5 export    data/seed.sql（可直接匯入 db/schema.sql 建的 PostgreSQL）
-   6 site      data/site/index.html（靜態網站，資料內嵌）
+                  ┌──────── 每週排程（GitHub Actions）────────┐
+財政部稅籍登記 ──▶│ services/etl（Python）                      │
+OSM Nominatim  ──▶│  sources → normalize → merge → geocode      │──upsert──┐
+Tavily 搜尋    ──▶│  → enrich(IG) → load                        │          │
+                  └─────────────────────────────────────────────┘          ▼
+                                                              ┌──────────────────────┐
+     使用者（補充資訊、上傳照片）──insert only（RLS）────────▶│ Supabase PostgreSQL  │
+                                                              │  merchants / reports │
+     管理者（審核）──登入後 update──────────────────────────▶│  Storage: ugc-photos │
+                                                              └──────────┬───────────┘
+                                                                         │ 讀取（publishable key）
+                                                                         ▼
+                                              apps/web（Next.js 靜態輸出）──▶ GitHub Pages
+                                                                                （之後 Cloudflare Pages）
 ```
 
-| 目錄 | 內容 | 版控 |
+## 專案結構
+
+```
+OneNaGo/
+├─ apps/web/                 Next.js + TypeScript（App Router、靜態輸出）
+│   └─ src/
+│       ├─ app/              路由：/、/[vertical]/[city]/、/shop/[id]/
+│       ├─ components/       ShopCard、ShopList、ShopMap、ContributeDialog …
+│       └─ lib/              資料讀取、Supabase 用戶端、距離、排序
+├─ services/etl/             Python 套件 onenago_etl（pytest、ruff、mypy）
+│   ├─ src/onenago_etl/
+│   │   ├─ sources/          財政部、人工補充 CSV
+│   │   ├─ normalize/        地址、店名正規化
+│   │   ├─ merge.py          同一家店合併（統編 → 門牌）
+│   │   ├─ geocode.py        Nominatim 結構化查詢＋快取
+│   │   ├─ enrich/           IG 搜尋比對
+│   │   ├─ load.py           寫入 Supabase（upsert，未出現者標為停業）
+│   │   └─ cli.py            指令進入點
+│   ├─ tests/                單元測試（地址、合併、IG 比對）
+│   ├─ cache/                定位與 IG 比對快取（版控，避免重複查詢）
+│   └─ seeds/                人工 / 網路補充資料（可選）
+├─ config/                   行業（verticals.json）、城市（cities.json）——網站和 ETL 共用
+├─ supabase/migrations/      資料表定義（唯一一份，依編號套用）
+├─ brand/                    品牌素材
+└─ .github/workflows/        ci.yml（檢查）、etl.yml（每週更新）、deploy.yml（部署網站）
+```
+
+## 資料模型（supabase/migrations）
+
+| 資料表 | 內容 | 誰能讀 / 寫 |
 |---|---|---|
-| `config/cities.json` | 城市清單與地標（新增城市只改這裡） | ✓ |
-| `config/verticals.json` | 行業：行業代號、關鍵字、顯示名稱（新增行業只改這裡） | ✓ |
-| `seeds/` | 人工 / 網路補充資料（可選） | ✓ |
-| `templates/` | 網站樣板 | ✓ |
-| `cache/geocode_cache.json` | 定位快取（越用越快） | ✓ |
-| `cache/mof/` | 政府原始檔（300MB） | ✗ |
-| `data/` | 每次 build 的產出，可整個刪掉重建 | ✗ |
+| `verticals` | 行業（nail 美甲 …） | 公開讀；ETL 寫 |
+| `cities` | 城市（zhubei 竹北市 …） | 公開讀；ETL 寫 |
+| `merchants` | 店家：名稱、地址、座標、IG、開業日、來源 | 公開讀（只有營業中的）；ETL 寫 |
+| `merchant_verticals` | 店家 × 行業 | 公開讀；ETL 寫 |
+| `reports` | 使用者補充（IG、價格、照片、歇業…） | **只能新增**；管理者審核 |
+| `report_summary`（view） | 彙整後的回報 | 公開讀 |
+| `approved_photos`（view） | 審核通過的照片 | 公開讀 |
 
-**新增一個城市**：在 `config/cities.json` 加一筆（城市名、縣市、網址代稱 slug、幾個地標查詢字）。
+店家 ID 依「統一編號 → IG → 店名＋地址」產生，**每次執行都一樣**，所以使用者回報可以一直對應到同一家店。
 
-**新增一個行業**（橫向擴展）：在 `config/verticals.json` 加一筆，填行業代號（例：美髮 962111、其他美容美體 962299）、店名關鍵字、顯示名稱。資料庫的分類會自動建立，資料表本身不用改。
+## 資料流程規則
 
-改完之後下一次 build（每週自動）就會出現，不需要任何人工整理。
+- **合併**：統一編號相同 → 同一家；門牌相同但統編不同 → 不同店（同棟多間工作室）。
+- **招牌名稱優先**：政府登記名稱另存一欄，不覆蓋網路或人工取得的名稱。
+- **停業處理**：這次沒出現在政府資料的店標為 `is_active = false`（保留紀錄，不刪除）。
+- **IG 自動比對**：店名相似、而且地點（城市 / 路名 / 電話）也相符，才採用。
+- **使用者回報**：IG、LINE、歇業需要 2 人以上回報一致；照片要人工審核。
 
-網址結構是 `/<行業>/<城市>/`，例如 `/nail/zhubei/`；首頁 `/` 會依行業列出所有城市。政府資料只掃描一次，就能同時篩出所有「行業 × 城市」的組合。
+## 擴展
 
-## 二、資料品質規則
+- **新增城市**：`config/cities.json` 加一筆。
+- **新增行業**：`config/verticals.json` 加一筆（行業代號、關鍵字、顯示名稱）。
 
-- **只放公開資訊**，頁面標示「資料來自公開資訊，非合作店家」。
-- **招牌名稱優先**：政府登記名稱常與招牌不同（例：「竹揚企業社」），網路或店家提供的名稱會覆蓋登記名稱，登記名稱另存一欄。
-- **多來源核對**：同一家店被兩個以上獨立來源指到，標「多來源核對」。
-- **疑似只做美睫**：店名有「睫」沒有「甲」的，標示並降低排序。
+不用改程式，下次排程執行就會出現。
 
-## 三、自動更新（下一步，0 元）
+## 品質與部署
 
-```
-GitHub Actions（每週排程，免費）
-  └─ python pipeline.py build --city <每個城市>
-       ├─ commit cache/geocode_cache.json（保留定位快取）
-       ├─ 部署 data/site → Cloudflare Pages / GitHub Pages（免費）
-       └─ 匯入 data/seed.sql → Supabase（免費方案）
-```
+| 工作流程 | 觸發時機 | 內容 |
+|---|---|---|
+| `ci.yml` | 每次 push / PR | ETL：ruff、mypy、pytest；網站：eslint、型別檢查、建置 |
+| `etl.yml` | 每週一 03:00（台灣時間）、手動 | 執行 ETL → 寫入 Supabase → 觸發部署 |
+| `deploy.yml` | ETL 完成、網站程式變更 | 建置 Next.js 靜態網站 → 部署 |
 
-- 財政部資料每天更新。新開的店會自動出現；歇業註銷的店，下次 build 就會消失。
-- Nominatim 規定每秒最多 1 次查詢。全台美甲店約數千家，第一次 build 約 1–2 小時，之後只查新增的店，幾分鐘內完成。
+## 機密資訊
 
-## 下一版待辦
+| 名稱 | 放哪裡 | 說明 |
+|---|---|---|
+| `SUPABASE_DB_URL` | GitHub Secrets、本機 `services/etl/.env` | ETL 寫入資料庫用，**絕不進版控** |
+| `TAVILY_API_KEY` | GitHub Secrets、本機 `.env` | 選填 |
+| Supabase URL、publishable key | `config/site.json` | 公開資訊，安全性靠 RLS |
 
-- **前期改成不公開**：GitHub 專案改成私人，網站改放 Cloudflare Pages，用 Cloudflare Access 限定 Email 登入（都免費）；正式公開時關掉 Access 就好。
-- 把 GitHub Actions 升級到支援 Node.js 24 的版本（目前出現 Node 20 即將淘汰的警告，暫時不影響運作）。
+## 待辦
 
-## 四、正式產品架構（資料長大之後）
-
-```
- [排程 build] ──寫入──▶ Supabase (PostgreSQL + PostGIS)
-                              ▲            │
-     店家自助刊登 / 客人投稿 ──┘            ▼
-       （submissions 表，審核後轉正式）   Next.js PWA（Vercel 免費）
-                                           ├─ 列表 / 地圖 / 作品牆
-                                           └─ LINE 登入、LINE 通知
-```
-
-自動資料（政府資料、IG）和使用者貢獻（刊登、投稿、更正）**寫進同一套資料表**，用 `source` 和 `sources` 欄位區分來源。這樣不論哪種來源，前端的顯示方式都一樣。
+- [ ] 投稿加 Cloudflare Turnstile（防灌水）
+- [ ] 管理審核頁（Supabase Auth 登入）
+- [ ] 改部署到 Cloudflare Pages，前期用 Cloudflare Access 限定 Email 才能看
+- [ ] 店家認領、作品牆、評論

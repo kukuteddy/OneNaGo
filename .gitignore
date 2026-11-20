@@ -1,8 +1,27 @@
 .env
+.env.*
+!.env.example
+__pycache__/
+*.egg-info/
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# ETL
+services/etl/.work/
+services/etl/cache/mof/
+
+# Web
+node_modules/
+apps/web/.next/
+apps/web/out/
+apps/web/next-env.d.ts
+
+# 舊版原型（遷移完成後移除）
 prototype/data/
 prototype/cache/mof/
 prototype/build.log
-__pycache__/
 
 # 機密：資料庫密碼等，絕不上傳
 supabase.txt

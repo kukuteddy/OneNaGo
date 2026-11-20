@@ -1,0 +1,9 @@
+{
+  "name": "玩哪走",
+  "nameEn": "OneNaGo",
+  "tagline": "台灣在地生活指南",
+  "supabase": {
+    "url": "https://kkgedobyxbufkywuxkzy.supabase.co",
+    "publishableKey": "sb_publishable_TdUeypg8MhEvEzzyxSNrgA_kA4Ic-2G"
+  }
+}

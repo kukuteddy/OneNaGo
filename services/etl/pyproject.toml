@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "onenago-etl"
+version = "0.2.0"
+description = "玩哪走 OneNaGo：店家資料自動彙整（財政部稅籍登記 → 正規化 → 合併 → 定位 → Supabase）"
+requires-python = ">=3.12"
+dependencies = ["psycopg[binary]>=3.2"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]
+
+[project.scripts]
+onenago-etl = "onenago_etl.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]  # 全形標點是中文內容，不是錯字
+
+[tool.mypy]
+python_version = "3.12"
+disallow_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

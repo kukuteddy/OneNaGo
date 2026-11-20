@@ -1,7 +1,0 @@
-{
-  "_說明": "supabase_url 與 supabase_publishable_key 是公開資訊（會放在網頁上），安全性由資料庫權限（RLS）把關。千萬不要放 secret / service_role 金鑰。",
-  "supabase_url": "https://kkgedobyxbufkywuxkzy.supabase.co",
-  "supabase_publishable_key": "sb_publishable_TdUeypg8MhEvEzzyxSNrgA_kA4Ic-2G",
-  "report_form_prefill": "",
-  "report_responses_csv": ""
-}
